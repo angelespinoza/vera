@@ -11,3 +11,37 @@ generator client {
 datasource db {
   provider = "postgresql"
 }
+
+// Etapa 1 — Empresa, treasury y empleados (ver docs/ALCANCE_FUNCIONAL_ETAPAS.md, Módulos 1 y 2)
+
+model Company {
+  id        String   @id @default(cuid())
+  name      String
+  cfoEmail  String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Treasury wallet en Stellar testnet (custodial). La secret key se guarda cifrada.
+  treasuryPublicKey          String @unique
+  treasurySecretKeyEncrypted String
+
+  employees Employee[]
+}
+
+model Employee {
+  id        String   @id @default(cuid())
+  companyId String
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  name      String
+  email     String
+  role      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Wallet en Stellar testnet (custodial). La secret key se guarda cifrada.
+  walletPublicKey          String @unique
+  walletSecretKeyEncrypted String
+
+  @@unique([companyId, email])
+}

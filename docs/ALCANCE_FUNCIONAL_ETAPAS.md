@@ -118,19 +118,19 @@ Objetivo: demostrar cuantitativamente la eficacia de Jev (velocidad y acierto) f
 
 Cada etapa produce un incremento demostrable y verificable antes de avanzar a la siguiente. Si algo falla, el punto de retorno es el final de la última etapa completada.
 
-| Etapa | Contenido | Entregable verificable |
-|---|---|---|
-| **0. Fundaciones** | Repo Next.js + TS, Prisma + Postgres, conexión Stellar testnet (keypair + friendbot + trustline USDC), variables de entorno, capa de abstracción de proveedor LLM genérico (OpenAI/Gemini) con validación de acceso, y credenciales de Jev/TypeSafe. | Se genera y fondea una wallet de prueba visible en Stellar Expert (testnet); llamada de prueba al proveedor LLM genérico y a Jev funcionan. |
-| **1. Empresa, treasury y empleados** | CRUD empresa, generación/fondeo de treasury, balance en vivo, CRUD empleados con wallet automática. | Se crea una empresa, se fondea su treasury, se da de alta un empleado con wallet visible on-chain. |
-| **2. Política** | UI de texto libre para el CFO, policy compiler (texto → JSON estructurado), edición manual. | Una política queda persistida y visible en su forma estructurada y editable. |
-| **3. Envío de gasto + evidencia** | Formulario de carga de comprobante, extracción con visión, confirmación/corrección manual. | Un gasto queda registrado con datos extraídos y confirmados, aún sin evaluar. |
-| **4. Motor de reglas** | Evaluación de reglas determinísticas contra política + gasto, resultado visible. | Cualquier gasto muestra qué reglas objetivas cumple o falla. |
-| **5. JEV** | Integración con Jev de TypeSafe (Choice/Score/Noul) con preguntas por categoría, resultados visibles. | El detalle del gasto muestra reglas + resultados de Jev (con confianza), sin decisión automática todavía. |
-| **6. Motor de decisión** | Orquestación completa del confidence gate, registro en audit log. | Cada gasto recibe una decisión automática explicada (sin mover fondos aún). |
-| **7. Panel comparativo Jev vs. LLM genérico** | Vía shadow con LLM genérico corriendo en paralelo a Jev sobre el mismo estado; captura de latencia y decisión de ambas vías; aislamiento estricto respecto al módulo de pago. | El detalle de un gasto muestra lado a lado tiempo y veredicto de Jev vs. LLM genérico, sin que la vía shadow pueda mover fondos. |
-| **8. Pago en Stellar** | Ejecución de transferencia USDC al aprobar (solo vía Jev/oficial), hash de transacción, manejo de errores. | Flujo end-to-end: comprobante → decisión → USDC recibido en wallet del empleado. |
-| **9. Dashboard, métricas y pulido de demo** | Historial, filtros, métricas agregadas (incluyendo comparativa Jev vs. LLM genérico), ajuste de UI a las 5 escenas de la demo del concepto original. | Producto demo-ready según el guión de la sección 16 del concepto, con panel de eficacia de Jev visible. |
-| **10. (Opcional) Flujo B** | Tarjeta corporativa simulada, reutilizando el mismo motor de decisión. | Solo se aborda si las etapas 0–9 están completas y sobra tiempo. |
+| Etapa | Estado | Contenido | Entregable verificable |
+|---|---|---|---|
+| **0. Fundaciones** | ✅ Hecho | Repo Next.js + TS, Prisma + Postgres, conexión Stellar testnet (keypair + friendbot + trustline USDC), variables de entorno, capa de abstracción de proveedor LLM genérico (OpenAI/Gemini) con validación de acceso, y credenciales de Jev/TypeSafe. | Se genera y fondea una wallet de prueba visible en Stellar Expert (testnet); llamada de prueba al proveedor LLM genérico y a Jev funcionan. |
+| **1. Empresa, treasury y empleados** | ✅ Hecho | CRUD empresa, generación/fondeo de treasury, balance en vivo, CRUD empleados con wallet automática. | Se crea una empresa, se fondea su treasury, se da de alta un empleado con wallet visible on-chain. |
+| **2. Política** | ⬜ Pendiente | UI de texto libre para el CFO, policy compiler (texto → JSON estructurado), edición manual. | Una política queda persistida y visible en su forma estructurada y editable. |
+| **3. Envío de gasto + evidencia** | ⬜ Pendiente | Formulario de carga de comprobante, extracción con visión, confirmación/corrección manual. | Un gasto queda registrado con datos extraídos y confirmados, aún sin evaluar. |
+| **4. Motor de reglas** | ⬜ Pendiente | Evaluación de reglas determinísticas contra política + gasto, resultado visible. | Cualquier gasto muestra qué reglas objetivas cumple o falla. |
+| **5. JEV** | ⬜ Pendiente | Integración con Jev de TypeSafe (Choice/Score/Noul) con preguntas por categoría, resultados visibles. | El detalle del gasto muestra reglas + resultados de Jev (con confianza), sin decisión automática todavía. |
+| **6. Motor de decisión** | ⬜ Pendiente | Orquestación completa del confidence gate, registro en audit log. | Cada gasto recibe una decisión automática explicada (sin mover fondos aún). |
+| **7. Panel comparativo Jev vs. LLM genérico** | ⬜ Pendiente | Vía shadow con LLM genérico corriendo en paralelo a Jev sobre el mismo estado; captura de latencia y decisión de ambas vías; aislamiento estricto respecto al módulo de pago. | El detalle de un gasto muestra lado a lado tiempo y veredicto de Jev vs. LLM genérico, sin que la vía shadow pueda mover fondos. |
+| **8. Pago en Stellar** | ⬜ Pendiente | Ejecución de transferencia USDC al aprobar (solo vía Jev/oficial), hash de transacción, manejo de errores. | Flujo end-to-end: comprobante → decisión → USDC recibido en wallet del empleado. |
+| **9. Dashboard, métricas y pulido de demo** | ⬜ Pendiente | Historial, filtros, métricas agregadas (incluyendo comparativa Jev vs. LLM genérico), ajuste de UI a las 5 escenas de la demo del concepto original. | Producto demo-ready según el guión de la sección 16 del concepto, con panel de eficacia de Jev visible. |
+| **10. (Opcional) Flujo B** | ⬜ Pendiente | Tarjeta corporativa simulada, reutilizando el mismo motor de decisión. | Solo se aborda si las etapas 0–9 están completas y sobra tiempo. |
 
 ---
 
