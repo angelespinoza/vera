@@ -8,6 +8,8 @@ import { evaluateExpenseRules } from "@/lib/rules/engine";
 import { evaluateExpenseWithJev } from "@/lib/jev/evaluate";
 import { evaluateExpenseShadow } from "@/lib/shadow/evaluate";
 import { decideExpense } from "@/lib/decision/engine";
+import { sendUsdcPayment } from "@/lib/stellar";
+import { decryptSecret } from "@/lib/crypto";
 import type { StructuredPolicy } from "@/lib/policy/types";
 import type { JevEvaluationResult } from "@/lib/jev/types";
 import type { ShadowEvaluationResult } from "@/lib/shadow/types";
@@ -169,6 +171,27 @@ export async function confirmExpense(
 
   const decision = decideExpense(ruleEvaluation, jevResult);
 
+  // AI recommends. Policy decides. Stellar executes. — el pago solo se
+  // intenta cuando el motor de decisión aprobó, y usa el resultado de
+  // `decision` (reglas + Jev), nunca el de la vía shadow.
+  let paymentTxHash: string | undefined;
+  let paymentError: string | undefined;
+  let paidAt: Date | undefined;
+
+  if (decision.outcome === "APPROVED" && employee) {
+    const company = await prisma.company.findUnique({ where: { id: updated.companyId } });
+    if (company) {
+      const treasurySecret = decryptSecret(company.treasurySecretKeyEncrypted);
+      const payment = await sendUsdcPayment(treasurySecret, employee.walletPublicKey, updated.amount!);
+      if (payment.success) {
+        paymentTxHash = payment.hash;
+        paidAt = new Date();
+      } else {
+        paymentError = payment.error;
+      }
+    }
+  }
+
   await prisma.expense.update({
     where: { id: expenseId },
     data: {
@@ -178,6 +201,9 @@ export async function confirmExpense(
       policySnapshot: structuredPolicy as unknown as object,
       decision: decision as unknown as object,
       status: decision.outcome,
+      paymentTxHash,
+      paymentError,
+      paidAt,
     },
   });
 

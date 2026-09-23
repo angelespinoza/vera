@@ -117,6 +117,13 @@ model Expense {
   // informativa, nunca influye en `decision`. Ver src/lib/shadow/types.ts.
   shadowResults Json?
 
+  // Pago en Stellar (Etapa 8 / Módulo 8) — solo se intenta si decision.outcome
+  // es APPROVED. paymentTxHash presente = pago exitoso; paymentError presente
+  // = se intentó y falló (el gasto queda aprobado pero no pagado).
+  paymentTxHash String?
+  paymentError  String?
+  paidAt        DateTime?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }

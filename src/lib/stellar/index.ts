@@ -6,6 +6,7 @@ import {
   Networks,
   Operation,
   TransactionBuilder,
+  TransactionFailedError,
 } from "@stellar/stellar-sdk";
 
 const HORIZON_URL =
@@ -80,4 +81,63 @@ export async function getAccountBalances(publicKey: string): Promise<AccountBala
 
 export function stellarExpertAccountUrl(publicKey: string): string {
   return `https://stellar.expert/explorer/testnet/account/${publicKey}`;
+}
+
+export function stellarExpertTxUrl(hash: string): string {
+  return `https://stellar.expert/explorer/testnet/tx/${hash}`;
+}
+
+export interface PaymentResult {
+  success: boolean;
+  hash?: string;
+  error?: string;
+}
+
+const HORIZON_ERROR_LABELS: Record<string, string> = {
+  op_underfunded: "Balance insuficiente en la treasury",
+  op_no_destination: "La cuenta destino no existe en Stellar testnet",
+  op_no_trust: "La cuenta destino no tiene trustline a USDC",
+  op_line_full: "La cuenta destino no puede recibir más USDC (línea llena)",
+  tx_insufficient_balance: "Balance insuficiente para cubrir el pago y la comisión",
+  tx_bad_seq: "Número de secuencia inválido (reintentar)",
+};
+
+/**
+ * Envía USDC testnet desde una wallet (secret key en claro, ya descifrada
+ * por el caller) a una wallet destino. Etapa 8 / Módulo 8 — se invoca solo
+ * cuando el motor de decisión (Etapa 6) aprueba el gasto.
+ */
+export async function sendUsdcPayment(
+  fromSecretKey: string,
+  toPublicKey: string,
+  amount: number,
+): Promise<PaymentResult> {
+  const server = getHorizonServer();
+  try {
+    const keypair = Keypair.fromSecret(fromSecretKey);
+    const account = await server.loadAccount(keypair.publicKey());
+    const tx = new TransactionBuilder(account, {
+      fee: BASE_FEE,
+      networkPassphrase: Networks.TESTNET,
+    })
+      .addOperation(
+        Operation.payment({
+          destination: toPublicKey,
+          asset: USDC_TESTNET_ASSET,
+          amount: amount.toFixed(7),
+        }),
+      )
+      .setTimeout(30)
+      .build();
+    tx.sign(keypair);
+    const result = await server.submitTransaction(tx);
+    return { success: true, hash: result.hash };
+  } catch (err) {
+    if (err instanceof TransactionFailedError) {
+      const { operations } = err.getResultCodes();
+      const label = operations.map((code) => HORIZON_ERROR_LABELS[code] ?? code).join("; ");
+      return { success: false, error: label || err.message };
+    }
+    return { success: false, error: err instanceof Error ? err.message : String(err) };
+  }
 }

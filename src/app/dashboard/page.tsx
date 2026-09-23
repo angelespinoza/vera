@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { getAccountBalances, stellarExpertAccountUrl } from "@/lib/stellar";
+import { getAccountBalances, stellarExpertAccountUrl, stellarExpertTxUrl } from "@/lib/stellar";
 import type { StructuredPolicy } from "@/lib/policy/types";
 import { CompanyForm } from "./company-form";
 import { EmployeeForm } from "./employee-form";
@@ -237,6 +237,24 @@ export default async function DashboardPage() {
                       <span className="text-zinc-500">{expense.category}</span>
                       <p className="text-zinc-500">{expense.justification}</p>
                       {decision && <p className="mt-1 text-xs text-zinc-500">{decision.reason}</p>}
+                      {expense.paymentTxHash && (
+                        <p className="mt-1 text-xs text-green-600">
+                          Pagado —{" "}
+                          <a
+                            href={stellarExpertTxUrl(expense.paymentTxHash)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="underline"
+                          >
+                            ver transacción
+                          </a>
+                        </p>
+                      )}
+                      {expense.paymentError && (
+                        <p className="mt-1 text-xs text-red-600">
+                          Aprobado pero el pago falló: {expense.paymentError}
+                        </p>
+                      )}
                       {evaluation && (
                         <div className="mt-2 flex flex-col gap-0.5 border-t border-zinc-100 pt-2 text-xs dark:border-zinc-900">
                           <p className="font-medium text-zinc-500">
