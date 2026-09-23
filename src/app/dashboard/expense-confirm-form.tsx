@@ -30,16 +30,16 @@ export function ExpenseConfirmForm({
   const [state, formAction, pending] = useActionState(confirmExpense, initialState);
 
   return (
-    <div className="flex flex-col gap-3 rounded-lg border border-zinc-200 p-4 dark:border-zinc-800 md:flex-row">
+    <div className="flex flex-col gap-3 rounded-lg border border-border-subtle p-4 md:flex-row">
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src={receiptDataUrl}
         alt="Comprobante"
-        className="h-40 w-40 shrink-0 rounded border border-zinc-200 object-cover dark:border-zinc-800"
+        className="h-40 w-40 shrink-0 rounded border border-border-subtle object-cover"
       />
       <form action={formAction} className="flex flex-1 flex-col gap-2">
         <input type="hidden" name="expenseId" value={expenseId} />
-        <p className="text-sm text-zinc-500">
+        <p className="text-sm text-text-secondary">
           {employeeName} — extracción con{" "}
           {confidence !== undefined ? `${Math.round(confidence * 100)}% de confianza` : "confianza desconocida"}
           . Revisa y corrige antes de confirmar.
@@ -52,35 +52,35 @@ export function ExpenseConfirmForm({
             required
             defaultValue={amount ?? ""}
             placeholder="Monto"
-            className="rounded border border-zinc-300 px-2 py-1 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+            className="rounded border border-border-subtle px-2 py-1 text-sm bg-surface-card"
           />
           <input
             name="currency"
             required
             defaultValue={currency ?? "USD"}
             placeholder="Moneda"
-            className="rounded border border-zinc-300 px-2 py-1 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+            className="rounded border border-border-subtle px-2 py-1 text-sm bg-surface-card"
           />
           <input
             name="merchant"
             required
             defaultValue={merchant ?? ""}
             placeholder="Comercio"
-            className="rounded border border-zinc-300 px-2 py-1 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+            className="rounded border border-border-subtle px-2 py-1 text-sm bg-surface-card"
           />
           <input
             name="category"
             required
             defaultValue={category ?? ""}
             placeholder="Categoría"
-            className="rounded border border-zinc-300 px-2 py-1 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+            className="rounded border border-border-subtle px-2 py-1 text-sm bg-surface-card"
           />
           <input
             name="expenseDate"
             type="date"
             required
             defaultValue={expenseDate ?? ""}
-            className="col-span-2 rounded border border-zinc-300 px-2 py-1 text-sm dark:border-zinc-700 dark:bg-zinc-900 md:col-span-1"
+            className="col-span-2 rounded border border-border-subtle px-2 py-1 text-sm bg-surface-card md:col-span-1"
           />
         </div>
         <textarea
@@ -88,13 +88,13 @@ export function ExpenseConfirmForm({
           required
           rows={2}
           placeholder="Justificación del gasto (propósito de negocio)"
-          className="rounded border border-zinc-300 px-2 py-1 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+          className="rounded border border-border-subtle px-2 py-1 text-sm bg-surface-card"
         />
         {state.error && <p className="text-sm text-red-600">{state.error}</p>}
         <button
           type="submit"
           disabled={pending}
-          className="w-fit rounded bg-black px-4 py-2 text-sm font-medium text-white disabled:opacity-50 dark:bg-white dark:text-black"
+          className="w-fit rounded bg-foreground px-4 py-2 text-sm font-medium text-background disabled:opacity-50"
         >
           {pending ? "Guardando…" : "Confirmar gasto"}
         </button>

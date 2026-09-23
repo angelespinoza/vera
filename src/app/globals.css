@@ -3,11 +3,29 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+
+  /* Paleta de estado (dataviz skill, references/palette.md) — mismos hex en
+     modo claro y oscuro, ambos clean 3:1 sobre su superficie. */
+  --status-good: #0ca30c;
+  --status-warning: #fab219;
+  --status-critical: #d03b3b;
+
+  --surface-card: #ffffff;
+  --surface-muted: #f7f7f6;
+  --border-subtle: #e5e5e4;
+  --text-secondary: #52514e;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-status-good: var(--status-good);
+  --color-status-warning: var(--status-warning);
+  --color-status-critical: var(--status-critical);
+  --color-surface-card: var(--surface-card);
+  --color-surface-muted: var(--surface-muted);
+  --color-border-subtle: var(--border-subtle);
+  --color-text-secondary: var(--text-secondary);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
@@ -16,6 +34,10 @@
   :root {
     --background: #0a0a0a;
     --foreground: #ededed;
+    --surface-card: #1a1a19;
+    --surface-muted: #232322;
+    --border-subtle: #33332f;
+    --text-secondary: #c3c2b7;
   }
 }
 

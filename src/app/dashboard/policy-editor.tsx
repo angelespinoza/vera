@@ -23,7 +23,7 @@ export function PolicyEditor({
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
             <thead>
-              <tr className="border-b border-zinc-200 text-zinc-500 dark:border-zinc-800">
+              <tr className="border-b border-border-subtle text-text-secondary">
                 <th className="py-1 pr-4">Categoría</th>
                 <th className="py-1 pr-4">Máximo</th>
                 <th className="py-1 pr-4">Periodo</th>
@@ -36,7 +36,7 @@ export function PolicyEditor({
             </thead>
             <tbody>
               {structured.categories.map((c) => (
-                <tr key={c.category} className="border-b border-zinc-100 dark:border-zinc-900">
+                <tr key={c.category} className="border-b border-border-subtle">
                   <td className="py-1 pr-4">{c.label}</td>
                   <td className="py-1 pr-4">
                     {c.maxAmount !== undefined ? `${c.maxAmount} ${structured.currency}` : "—"}
@@ -66,13 +66,13 @@ export function PolicyEditor({
             name="structuredJson"
             rows={16}
             defaultValue={JSON.stringify(structured, null, 2)}
-            className="rounded border border-zinc-300 px-3 py-2 font-mono text-xs dark:border-zinc-700 dark:bg-zinc-900"
+            className="rounded border border-border-subtle px-3 py-2 font-mono text-xs bg-surface-card"
           />
           {state.error && <p className="text-sm text-red-600">{state.error}</p>}
           <button
             type="submit"
             disabled={pending}
-            className="w-fit rounded bg-black px-4 py-2 text-sm font-medium text-white disabled:opacity-50 dark:bg-white dark:text-black"
+            className="w-fit rounded bg-foreground px-4 py-2 text-sm font-medium text-background disabled:opacity-50"
           >
             {pending ? "Guardando…" : "Guardar cambios manuales"}
           </button>

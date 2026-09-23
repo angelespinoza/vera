@@ -27,7 +27,7 @@ export function ExpenseUploadForm({
           name="employeeId"
           required
           defaultValue=""
-          className="rounded border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+          className="rounded border border-border-subtle px-3 py-2 text-sm bg-surface-card"
         >
           <option value="" disabled>
             Selecciona un empleado
@@ -56,7 +56,7 @@ export function ExpenseUploadForm({
       <button
         type="submit"
         disabled={pending}
-        className="w-fit rounded bg-black px-4 py-2 text-sm font-medium text-white disabled:opacity-50 dark:bg-white dark:text-black"
+        className="w-fit rounded bg-foreground px-4 py-2 text-sm font-medium text-background disabled:opacity-50"
       >
         {pending ? "Extrayendo datos del comprobante…" : "Cargar comprobante"}
       </button>

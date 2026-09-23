@@ -18,7 +18,7 @@ export function CompanyForm() {
           id="name"
           name="name"
           required
-          className="rounded border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+          className="rounded border border-border-subtle px-3 py-2 text-sm bg-surface-card"
         />
       </div>
       <div className="flex flex-col gap-1">
@@ -30,14 +30,14 @@ export function CompanyForm() {
           name="cfoEmail"
           type="email"
           required
-          className="rounded border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+          className="rounded border border-border-subtle px-3 py-2 text-sm bg-surface-card"
         />
       </div>
       {state.error && <p className="text-sm text-red-600">{state.error}</p>}
       <button
         type="submit"
         disabled={pending}
-        className="rounded bg-black px-4 py-2 text-sm font-medium text-white disabled:opacity-50 dark:bg-white dark:text-black"
+        className="rounded bg-foreground px-4 py-2 text-sm font-medium text-background disabled:opacity-50"
       >
         {pending ? "Creando empresa y treasury en Stellar testnet…" : "Crear empresa"}
       </button>
