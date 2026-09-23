@@ -1,8 +1,11 @@
 "use server";
 
+import { createHash } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { extractReceiptData } from "@/lib/receipt/extract";
+import { evaluateExpenseRules } from "@/lib/rules/engine";
+import type { StructuredPolicy } from "@/lib/policy/types";
 import type { ActionState } from "./company";
 
 export async function uploadExpenseReceipt(
@@ -24,6 +27,7 @@ export async function uploadExpenseReceipt(
 
   const buffer = Buffer.from(await file.arrayBuffer());
   const mimeType = file.type || "application/octet-stream";
+  const receiptHash = createHash("sha256").update(buffer).digest("hex");
 
   let extracted;
   try {
@@ -40,6 +44,7 @@ export async function uploadExpenseReceipt(
       employeeId,
       receiptFile: buffer,
       receiptMimeType: mimeType,
+      receiptHash,
       extractedData: extracted as object,
       amount: extracted.amount,
       currency: extracted.currency,
@@ -81,7 +86,7 @@ export async function confirmExpense(
     return { error: "Todos los campos son requeridos para confirmar el gasto." };
   }
 
-  await prisma.expense.update({
+  const updated = await prisma.expense.update({
     where: { id: expenseId },
     data: {
       amount,
@@ -93,6 +98,29 @@ export async function confirmExpense(
       status: "SUBMITTED",
     },
   });
+
+  const policy = await prisma.policy.findUnique({ where: { companyId: updated.companyId } });
+  if (policy) {
+    const evaluation = await evaluateExpenseRules(
+      {
+        id: updated.id,
+        employeeId: updated.employeeId,
+        companyId: updated.companyId,
+        amount: updated.amount!,
+        currency: updated.currency!,
+        merchant: updated.merchant!,
+        category: updated.category!,
+        expenseDate: updated.expenseDate!,
+        justification: updated.justification!,
+        receiptHash: updated.receiptHash,
+      },
+      policy.structured as unknown as StructuredPolicy,
+    );
+    await prisma.expense.update({
+      where: { id: expenseId },
+      data: { ruleResults: evaluation as object },
+    });
+  }
 
   revalidatePath("/dashboard");
   return {};

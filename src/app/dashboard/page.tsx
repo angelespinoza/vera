@@ -7,6 +7,7 @@ import { PolicyForm } from "./policy-form";
 import { PolicyEditor } from "./policy-editor";
 import { ExpenseUploadForm } from "./expense-upload-form";
 import { ExpenseConfirmForm } from "./expense-confirm-form";
+import type { RuleEvaluationResult } from "@/lib/rules/types";
 
 export const dynamic = "force-dynamic";
 
@@ -165,17 +166,39 @@ export default async function DashboardPage() {
             <ul className="flex flex-col gap-2">
               {company.expenses
                 .filter((e) => e.status === "SUBMITTED")
-                .map((expense) => (
-                  <li
-                    key={expense.id}
-                    className="rounded-lg border border-zinc-200 p-3 text-sm dark:border-zinc-800"
-                  >
-                    <span className="font-medium">{expense.employee.name}</span> —{" "}
-                    {expense.merchant} — {expense.amount} {expense.currency} —{" "}
-                    <span className="text-zinc-500">{expense.category}</span>
-                    <p className="text-zinc-500">{expense.justification}</p>
-                  </li>
-                ))}
+                .map((expense) => {
+                  const evaluation = expense.ruleResults as unknown as RuleEvaluationResult | null;
+                  return (
+                    <li
+                      key={expense.id}
+                      className="rounded-lg border border-zinc-200 p-3 text-sm dark:border-zinc-800"
+                    >
+                      <span className="font-medium">{expense.employee.name}</span> —{" "}
+                      {expense.merchant} — {expense.amount} {expense.currency} —{" "}
+                      <span className="text-zinc-500">{expense.category}</span>
+                      <p className="text-zinc-500">{expense.justification}</p>
+                      {evaluation && (
+                        <div className="mt-2 flex flex-col gap-0.5 border-t border-zinc-100 pt-2 text-xs dark:border-zinc-900">
+                          <p className="font-medium text-zinc-500">
+                            Reglas determinísticas:{" "}
+                            {evaluation.allPassed ? (
+                              <span className="text-green-600">todas pasaron</span>
+                            ) : (
+                              <span className="text-red-600">hay reglas que fallaron</span>
+                            )}
+                          </p>
+                          <ul>
+                            {evaluation.checks.map((check) => (
+                              <li key={check.rule}>
+                                {check.passed ? "✓" : "✗"} {check.label} — {check.detail}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </li>
+                  );
+                })}
             </ul>
           </div>
         )}

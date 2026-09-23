@@ -79,6 +79,8 @@ model Expense {
 
   receiptFile     Bytes
   receiptMimeType String
+  // SHA-256 del archivo, para detectar comprobantes duplicados (Etapa 4).
+  receiptHash     String?
 
   // Salida cruda de la extracción con visión (ver src/lib/receipt/types.ts).
   extractedData Json?
@@ -93,8 +95,12 @@ model Expense {
   justification String?
 
   // EXTRACTED: recién subido, esperando confirmación del empleado.
-  // SUBMITTED: confirmado, listo para evaluación (etapas siguientes).
+  // SUBMITTED: confirmado, reglas determinísticas evaluadas (etapas siguientes deciden).
   status String @default("EXTRACTED")
+
+  // Resultado del motor de reglas determinísticas (Etapa 4 / Módulo 5).
+  // Ver src/lib/rules/types.ts para la forma exacta.
+  ruleResults Json?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
