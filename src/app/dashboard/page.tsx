@@ -7,7 +7,7 @@ import { PolicyForm } from "./policy-form";
 import { PolicyEditor } from "./policy-editor";
 import { ExpenseUploadForm } from "./expense-upload-form";
 import { ExpenseConfirmForm } from "./expense-confirm-form";
-import { Card, StatTile, StatusBadge } from "./ui";
+import { Card, StatTile, StatusBadge, SectionNav, truncateKey, CountBadge } from "./ui";
 import type { RuleEvaluationResult } from "@/lib/rules/types";
 import type { JevEvaluationResult } from "@/lib/jev/types";
 import type { DecisionResult } from "@/lib/decision/types";
@@ -113,7 +113,7 @@ export default async function DashboardPage({
 
   return (
     <main className="mx-auto flex max-w-4xl flex-col gap-8 p-6 md:p-8">
-      <header className="flex flex-col gap-1 border-b border-border-subtle pb-4">
+      <header className="flex flex-col gap-1">
         <p className="text-xs font-medium tracking-wide text-text-secondary uppercase">
           Vera — CFO Agent
         </p>
@@ -121,8 +121,49 @@ export default async function DashboardPage({
         <p className="text-sm text-text-secondary">CFO: {company.cfoEmail}</p>
       </header>
 
-      <Card title="Treasury (Stellar testnet)">
-        <p className="break-all font-mono text-xs text-text-secondary">{company.treasuryPublicKey}</p>
+      <SectionNav
+        sections={[
+          { id: "treasury", label: "Treasury" },
+          ...(evaluated.length > 0 ? [{ id: "metrics", label: "Métricas" }] : []),
+          { id: "policy", label: "Política" },
+          { id: "employees", label: "Empleados" },
+          { id: "expenses", label: "Gastos" },
+        ]}
+      />
+
+      {(!company.policy || company.employees.length === 0) && (
+        <Card className="border-status-warning/40 bg-status-warning/5">
+          <p className="text-sm font-semibold">Primeros pasos</p>
+          <ol className="flex flex-col gap-1 text-sm text-text-secondary">
+            <li className={company.policy ? "line-through opacity-60" : ""}>
+              1. Define la política de gastos en{" "}
+              <a href="#policy" className="underline">
+                Política de gastos
+              </a>
+              .
+            </li>
+            <li className={company.employees.length > 0 ? "line-through opacity-60" : ""}>
+              2. Da de alta al menos un empleado en{" "}
+              <a href="#employees" className="underline">
+                Empleados
+              </a>
+              .
+            </li>
+            <li>
+              3. Sube el primer comprobante en{" "}
+              <a href="#expenses" className="underline">
+                Gastos
+              </a>
+              .
+            </li>
+          </ol>
+        </Card>
+      )}
+
+      <Card id="treasury" title="Treasury (Stellar testnet)">
+        <p className="font-mono text-xs text-text-secondary" title={company.treasuryPublicKey}>
+          {truncateKey(company.treasuryPublicKey)}
+        </p>
         <div className="flex gap-6 text-sm">
           <span>
             XLM: <strong className="tabular-nums">{treasuryBalances.xlm}</strong>
@@ -154,7 +195,7 @@ export default async function DashboardPage({
       </Card>
 
       {evaluated.length > 0 && (
-        <Card title="Métricas">
+        <Card id="metrics" title="Métricas">
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
             <StatTile label="Gastos procesados" value={String(evaluated.length)} />
             <StatTile
@@ -197,7 +238,7 @@ export default async function DashboardPage({
         </Card>
       )}
 
-      <Card title="Política de gastos">
+      <Card id="policy" title="Política de gastos">
         <PolicyForm companyId={company.id} defaultText={company.policy?.rawText} />
         {company.policy && (
           <PolicyEditor
@@ -207,7 +248,7 @@ export default async function DashboardPage({
         )}
       </Card>
 
-      <Card title="Empleados">
+      <Card id="employees" title="Empleados">
         {company.employees.length === 0 ? (
           <p className="text-sm text-text-secondary">Aún no hay empleados registrados.</p>
         ) : (
@@ -221,8 +262,8 @@ export default async function DashboardPage({
                   {employee.name} — <span className="text-text-secondary">{employee.role}</span>
                 </p>
                 <p className="text-sm text-text-secondary">{employee.email}</p>
-                <p className="break-all font-mono text-xs text-text-secondary">
-                  {employee.walletPublicKey}
+                <p className="font-mono text-xs text-text-secondary" title={employee.walletPublicKey}>
+                  {truncateKey(employee.walletPublicKey)}
                 </p>
                 <div className="flex gap-6 text-sm">
                   <span>
@@ -239,15 +280,17 @@ export default async function DashboardPage({
         <EmployeeForm companyId={company.id} />
       </Card>
 
-      <Card title="Gastos">
+      <Card id="expenses" title="Gastos" badge={<CountBadge count={pending.length} />}>
         <ExpenseUploadForm
           companyId={company.id}
           employees={company.employees.map((e) => ({ id: e.id, name: e.name }))}
         />
 
         {pending.length > 0 && (
-          <div className="flex flex-col gap-3">
-            <h3 className="text-sm font-medium text-text-secondary">Pendientes de confirmación</h3>
+          <div className="flex flex-col gap-3 rounded-lg border border-status-warning/40 bg-status-warning/5 p-3">
+            <h3 className="text-sm font-semibold text-status-warning">
+              ! Pendientes de confirmación — acción requerida
+            </h3>
             {pending.map((expense) => {
               const extracted = expense.extractedData as { confidence?: number } | null;
               return (
@@ -386,28 +429,34 @@ export default async function DashboardPage({
                           Aprobado pero el pago falló: {expense.paymentError}
                         </p>
                       )}
-                      {evaluation && (
-                        <div className="flex flex-col gap-0.5 border-t border-border-subtle pt-2 text-xs">
-                          <p className="font-medium text-text-secondary">
-                            Reglas determinísticas:{" "}
-                            {evaluation.allPassed ? (
-                              <span className="text-status-good">todas pasaron</span>
-                            ) : (
-                              <span className="text-status-critical">hay reglas que fallaron</span>
+                      {(evaluation || jev || shadow) && (
+                        <details className="border-t border-border-subtle pt-2 text-xs">
+                          <summary className="cursor-pointer font-medium text-text-secondary">
+                            Ver detalle de evaluación (reglas, Jev, comparativa)
+                          </summary>
+                          <div className="mt-2 flex flex-col gap-3">
+                            {evaluation && (
+                              <div className="flex flex-col gap-0.5">
+                                <p className="font-medium text-text-secondary">
+                                  Reglas determinísticas:{" "}
+                                  {evaluation.allPassed ? (
+                                    <span className="text-status-good">todas pasaron</span>
+                                  ) : (
+                                    <span className="text-status-critical">hay reglas que fallaron</span>
+                                  )}
+                                </p>
+                                <ul>
+                                  {evaluation.checks.map((check) => (
+                                    <li key={check.rule}>
+                                      {check.passed ? "✓" : "✗"} {check.label} — {check.detail}
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
                             )}
-                          </p>
-                          <ul>
-                            {evaluation.checks.map((check) => (
-                              <li key={check.rule}>
-                                {check.passed ? "✓" : "✗"} {check.label} — {check.detail}
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
-                      {(jev || shadow) && (
-                        <div className="grid grid-cols-1 gap-3 border-t border-border-subtle pt-2 text-xs md:grid-cols-2">
-                          <div>
+                            {(jev || shadow) && (
+                              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                                <div>
                             <p className="font-medium text-text-secondary">
                               Jev (oficial) —{" "}
                               {jev?.error
@@ -460,8 +509,11 @@ export default async function DashboardPage({
                             ) : (
                               shadow?.error && <p className="text-status-critical">{shadow.error}</p>
                             )}
+                                </div>
+                              </div>
+                            )}
                           </div>
-                        </div>
+                        </details>
                       )}
                     </li>
                   );
