@@ -60,16 +60,16 @@ No se usará la API de Claude/Anthropic en el proyecto (restricción de crédito
 
 según cuál tenga créditos disponibles en el momento de desarrollo. La interfaz interna (inputs/outputs) es la misma sin importar el proveedor activo; el cambio se hace por configuración, no por reescritura de código.
 
-### 4.2 Jev de TypeSafe — skill instalado
+### 4.2 Jev de TypeSafe — integrado (Etapa 5)
 
-Se instaló el plugin/skill oficial `typesafe@typesafe-ai` en Claude Code (`docs.typesafe.ai`). La skill no trae los detalles de API embebidos: indica leer los docs en vivo al momento de escribir cada integración (cambian con el tiempo). Puntos de diseño ya confirmados:
+SDK: `@typesafe-ai/sdk` (`TypeSafeClient`, funciones `choice()`/`score()`/`noul()`). Cliente lee `TYPESAFE_API_KEY` del entorno automáticamente. Integración en `src/lib/jev/evaluate.ts`.
 
-- Estado (`state`) se pasa como JSON con campos nombrados; las preguntas referencian rutas anidadas (ej. `` `receipt.amount` ``).
-- Las tres primitivas (`Choice`, `Score`, `Noul`) se combinan en una sola llamada y corren en paralelo — no ven las respuestas entre sí.
-- **Semántica de confianza:** un `Noul` cerca de 0.5 = probabilidad similar sí/no (no "confianza media"); la confianza de `Choice`/`Score` mide concentración de la distribución, no corrección del flujo completo. Los umbrales del *confidence gate* (Módulo 7) deben calibrarse con datos reales, no asumirse de fábrica.
-- Credenciales de TypeSafe deben vivir solo server-side.
-
-**Pendiente antes de la Etapa 5:** conseguir la API key de TypeSafe y releer las páginas vivas de `primitives/*`, `api.md` y `sdk/javascript.md` al momento de implementar (la skill lo exige explícitamente, para no inventar detalles desactualizados).
+- `client.systemOne({ state, questions })` evalúa varias preguntas en una sola llamada, en paralelo (no se ven las respuestas entre sí). `state` debe ser JSON plano (texto, objeto o array) — un objeto tipado con interfaces TS sin index signature no es asignable directamente; se normaliza con `JSON.parse(JSON.stringify(...))`.
+- `noul(instructions, {true, false})` devuelve `{ noul: number }` — probabilidad de "sí", sin campo de confianza separado (un valor cerca de 0.5 significa probabilidad similar sí/no, no "confianza media").
+- `choice()`/`score()` devuelven además `confidence` (concentración de la distribución, no corrección del flujo completo) y `probabilities`.
+- Preguntas usadas para evaluar un gasto: `complies_with_policy`, `business_purpose_valid`, `evidence_sufficient`, `requires_review` (siempre), más `role_relevant` cuando la categoría tiene `requiresRoleRelevance`.
+- Verificado con la API real: reproduce casi exactamente los ejemplos del concepto original (Notion/PM → ~97% relevancia de rol; justificación vaga → confianza de propósito de negocio cae a ~12% y "requiere revisión" sube a ~76%).
+- Umbrales del *confidence gate* (Módulo 7 / Etapa 6) siguen pendientes de calibrar con datos reales.
 
 ## 5. Principio de seguridad (heredado del concepto)
 

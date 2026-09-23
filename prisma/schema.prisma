@@ -102,6 +102,10 @@ model Expense {
   // Ver src/lib/rules/types.ts para la forma exacta.
   ruleResults Json?
 
+  // Resultado de la evaluación semántica con Jev/TypeSafe (Etapa 5 / Módulo 6).
+  // Ver src/lib/jev/types.ts para la forma exacta.
+  jevResults Json?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }

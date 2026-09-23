@@ -8,6 +8,7 @@ import { PolicyEditor } from "./policy-editor";
 import { ExpenseUploadForm } from "./expense-upload-form";
 import { ExpenseConfirmForm } from "./expense-confirm-form";
 import type { RuleEvaluationResult } from "@/lib/rules/types";
+import type { JevEvaluationResult } from "@/lib/jev/types";
 
 export const dynamic = "force-dynamic";
 
@@ -168,6 +169,7 @@ export default async function DashboardPage() {
                 .filter((e) => e.status === "SUBMITTED")
                 .map((expense) => {
                   const evaluation = expense.ruleResults as unknown as RuleEvaluationResult | null;
+                  const jev = expense.jevResults as unknown as (JevEvaluationResult & { error?: string }) | null;
                   return (
                     <li
                       key={expense.id}
@@ -195,6 +197,39 @@ export default async function DashboardPage() {
                             ))}
                           </ul>
                         </div>
+                      )}
+                      {jev && !jev.error && (
+                        <div className="mt-2 flex flex-col gap-0.5 border-t border-zinc-100 pt-2 text-xs dark:border-zinc-900">
+                          <p className="font-medium text-zinc-500">
+                            Jev (TypeSafe) — modelo {jev.model}:
+                          </p>
+                          <ul>
+                            <li>
+                              Cumple la política: {Math.round(jev.compliesWithPolicy.probability * 100)}%
+                            </li>
+                            <li>
+                              Propósito de negocio válido:{" "}
+                              {Math.round(jev.businessPurposeValid.probability * 100)}%
+                            </li>
+                            <li>
+                              Evidencia suficiente: {Math.round(jev.evidenceSufficient.probability * 100)}%
+                            </li>
+                            <li>
+                              Requiere revisión humana:{" "}
+                              {Math.round(jev.requiresReview.probability * 100)}%
+                            </li>
+                            {jev.roleRelevant && (
+                              <li>
+                                Relevante para el rol: {Math.round(jev.roleRelevant.probability * 100)}%
+                              </li>
+                            )}
+                          </ul>
+                        </div>
+                      )}
+                      {jev?.error && (
+                        <p className="mt-2 border-t border-zinc-100 pt-2 text-xs text-red-600 dark:border-zinc-900">
+                          Jev no pudo evaluarse: {jev.error}
+                        </p>
                       )}
                     </li>
                   );
