@@ -9,6 +9,19 @@ import { ExpenseUploadForm } from "./expense-upload-form";
 import { ExpenseConfirmForm } from "./expense-confirm-form";
 import type { RuleEvaluationResult } from "@/lib/rules/types";
 import type { JevEvaluationResult } from "@/lib/jev/types";
+import type { DecisionResult } from "@/lib/decision/types";
+
+const DECISION_LABEL: Record<string, string> = {
+  APPROVED: "APROBADO",
+  REJECTED: "RECHAZADO",
+  REVIEW_REQUIRED: "REQUIERE REVISIÓN",
+};
+
+const DECISION_COLOR: Record<string, string> = {
+  APPROVED: "text-green-600",
+  REJECTED: "text-red-600",
+  REVIEW_REQUIRED: "text-amber-600",
+};
 
 export const dynamic = "force-dynamic";
 
@@ -161,24 +174,33 @@ export default async function DashboardPage() {
           </div>
         )}
 
-        {company.expenses.filter((e) => e.status === "SUBMITTED").length > 0 && (
+        {company.expenses.filter((e) =>
+          ["APPROVED", "REJECTED", "REVIEW_REQUIRED"].includes(e.status),
+        ).length > 0 && (
           <div className="flex flex-col gap-2">
-            <h3 className="text-sm font-medium text-zinc-500">Confirmados</h3>
+            <h3 className="text-sm font-medium text-zinc-500">Evaluados</h3>
             <ul className="flex flex-col gap-2">
               {company.expenses
-                .filter((e) => e.status === "SUBMITTED")
+                .filter((e) => ["APPROVED", "REJECTED", "REVIEW_REQUIRED"].includes(e.status))
                 .map((expense) => {
                   const evaluation = expense.ruleResults as unknown as RuleEvaluationResult | null;
                   const jev = expense.jevResults as unknown as (JevEvaluationResult & { error?: string }) | null;
+                  const decision = expense.decision as unknown as DecisionResult | null;
                   return (
                     <li
                       key={expense.id}
                       className="rounded-lg border border-zinc-200 p-3 text-sm dark:border-zinc-800"
                     >
+                      {decision && (
+                        <p className={`text-sm font-bold ${DECISION_COLOR[decision.outcome] ?? ""}`}>
+                          {DECISION_LABEL[decision.outcome] ?? decision.outcome}
+                        </p>
+                      )}
                       <span className="font-medium">{expense.employee.name}</span> —{" "}
                       {expense.merchant} — {expense.amount} {expense.currency} —{" "}
                       <span className="text-zinc-500">{expense.category}</span>
                       <p className="text-zinc-500">{expense.justification}</p>
+                      {decision && <p className="mt-1 text-xs text-zinc-500">{decision.reason}</p>}
                       {evaluation && (
                         <div className="mt-2 flex flex-col gap-0.5 border-t border-zinc-100 pt-2 text-xs dark:border-zinc-900">
                           <p className="font-medium text-zinc-500">

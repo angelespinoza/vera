@@ -6,7 +6,9 @@ import { prisma } from "@/lib/prisma";
 import { extractReceiptData } from "@/lib/receipt/extract";
 import { evaluateExpenseRules } from "@/lib/rules/engine";
 import { evaluateExpenseWithJev } from "@/lib/jev/evaluate";
+import { decideExpense } from "@/lib/decision/engine";
 import type { StructuredPolicy } from "@/lib/policy/types";
+import type { JevEvaluationResult } from "@/lib/jev/types";
 import type { ActionState } from "./company";
 
 export async function uploadExpenseReceipt(
@@ -103,58 +105,64 @@ export async function confirmExpense(
   const policy = await prisma.policy.findUnique({ where: { companyId: updated.companyId } });
   const employee = await prisma.employee.findUnique({ where: { id: updated.employeeId } });
 
-  if (policy) {
-    const structuredPolicy = policy.structured as unknown as StructuredPolicy;
-    const evaluation = await evaluateExpenseRules(
-      {
-        id: updated.id,
-        employeeId: updated.employeeId,
-        companyId: updated.companyId,
+  if (!policy) {
+    // Sin política no hay nada contra qué evaluar — el gasto queda SUBMITTED,
+    // pendiente de que el CFO defina una política.
+    revalidatePath("/dashboard");
+    return {};
+  }
+
+  const structuredPolicy = policy.structured as unknown as StructuredPolicy;
+  const ruleEvaluation = await evaluateExpenseRules(
+    {
+      id: updated.id,
+      employeeId: updated.employeeId,
+      companyId: updated.companyId,
+      amount: updated.amount!,
+      currency: updated.currency!,
+      merchant: updated.merchant!,
+      category: updated.category!,
+      expenseDate: updated.expenseDate!,
+      justification: updated.justification!,
+      receiptHash: updated.receiptHash,
+    },
+    structuredPolicy,
+  );
+
+  let jevResult: (JevEvaluationResult & { error?: string }) | null = null;
+  if (employee) {
+    const categoryRule = structuredPolicy.categories.find((c) => c.category === updated.category);
+    try {
+      jevResult = await evaluateExpenseWithJev({
+        merchant: updated.merchant!,
         amount: updated.amount!,
         currency: updated.currency!,
-        merchant: updated.merchant!,
         category: updated.category!,
-        expenseDate: updated.expenseDate!,
+        expenseDate: updated.expenseDate!.toISOString().slice(0, 10),
         justification: updated.justification!,
-        receiptHash: updated.receiptHash,
-      },
-      structuredPolicy,
-    );
-    await prisma.expense.update({
-      where: { id: expenseId },
-      data: { ruleResults: evaluation as object },
-    });
-
-    if (employee) {
-      const categoryRule = structuredPolicy.categories.find((c) => c.category === updated.category);
-      try {
-        const jevResult = await evaluateExpenseWithJev({
-          merchant: updated.merchant!,
-          amount: updated.amount!,
-          currency: updated.currency!,
-          category: updated.category!,
-          expenseDate: updated.expenseDate!.toISOString().slice(0, 10),
-          justification: updated.justification!,
-          employeeName: employee.name,
-          employeeRole: employee.role,
-          categoryRule,
-        });
-        await prisma.expense.update({
-          where: { id: expenseId },
-          data: { jevResults: jevResult as unknown as object },
-        });
-      } catch (err) {
-        await prisma.expense.update({
-          where: { id: expenseId },
-          data: {
-            jevResults: {
-              error: err instanceof Error ? err.message : String(err),
-            },
-          },
-        });
-      }
+        employeeName: employee.name,
+        employeeRole: employee.role,
+        categoryRule,
+      });
+    } catch (err) {
+      jevResult = { error: err instanceof Error ? err.message : String(err) } as JevEvaluationResult & {
+        error: string;
+      };
     }
   }
+
+  const decision = decideExpense(ruleEvaluation, jevResult);
+
+  await prisma.expense.update({
+    where: { id: expenseId },
+    data: {
+      ruleResults: ruleEvaluation as object,
+      jevResults: jevResult as unknown as object,
+      policySnapshot: structuredPolicy as unknown as object,
+      decision: decision as unknown as object,
+      status: decision.outcome,
+    },
+  });
 
   revalidatePath("/dashboard");
   return {};

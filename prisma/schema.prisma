@@ -95,7 +95,8 @@ model Expense {
   justification String?
 
   // EXTRACTED: recién subido, esperando confirmación del empleado.
-  // SUBMITTED: confirmado, reglas determinísticas evaluadas (etapas siguientes deciden).
+  // SUBMITTED: confirmado, reglas+Jev evaluándose (transitorio).
+  // APPROVED / REJECTED / REVIEW_REQUIRED: decisión final del motor (Etapa 6).
   status String @default("EXTRACTED")
 
   // Resultado del motor de reglas determinísticas (Etapa 4 / Módulo 5).
@@ -105,6 +106,12 @@ model Expense {
   // Resultado de la evaluación semántica con Jev/TypeSafe (Etapa 5 / Módulo 6).
   // Ver src/lib/jev/types.ts para la forma exacta.
   jevResults Json?
+
+  // Snapshot de la política estructurada tal como estaba al momento de decidir
+  // (auditabilidad: la política puede cambiar después). Etapa 6 / Módulo 7.
+  policySnapshot Json?
+  // Resultado del motor de decisión (confidence gate). Ver src/lib/decision/types.ts.
+  decision       Json?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
