@@ -26,6 +26,7 @@ model Company {
   treasurySecretKeyEncrypted String
 
   employees Employee[]
+  policy    Policy?
 }
 
 model Employee {
@@ -44,4 +45,22 @@ model Employee {
   walletSecretKeyEncrypted String
 
   @@unique([companyId, email])
+}
+
+// Etapa 2 — Política (ver docs/ALCANCE_FUNCIONAL_ETAPAS.md, Módulo 3)
+
+model Policy {
+  id        String   @id @default(cuid())
+  companyId String   @unique
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  // Texto original en lenguaje natural, tal como lo escribió el CFO.
+  rawText String
+
+  // Estructura JSON producida por el policy compiler (o editada manualmente
+  // por el CFO). Ver src/lib/policy/types.ts para la forma exacta.
+  structured Json
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }

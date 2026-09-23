@@ -1,14 +1,17 @@
 import { prisma } from "@/lib/prisma";
 import { getAccountBalances, stellarExpertAccountUrl } from "@/lib/stellar";
+import type { StructuredPolicy } from "@/lib/policy/types";
 import { CompanyForm } from "./company-form";
 import { EmployeeForm } from "./employee-form";
+import { PolicyForm } from "./policy-form";
+import { PolicyEditor } from "./policy-editor";
 
 export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
   const company = await prisma.company.findFirst({
     orderBy: { createdAt: "asc" },
-    include: { employees: { orderBy: { createdAt: "asc" } } },
+    include: { employees: { orderBy: { createdAt: "asc" } }, policy: true },
   });
 
   if (!company) {
@@ -70,6 +73,17 @@ export default async function DashboardPage() {
           </a>{" "}
           (red Stellar). El trustline ya está establecido.
         </p>
+      </section>
+
+      <section className="flex flex-col gap-4 rounded-lg border border-zinc-200 p-5 dark:border-zinc-800">
+        <h2 className="text-lg font-medium">Política de gastos</h2>
+        <PolicyForm companyId={company.id} defaultText={company.policy?.rawText} />
+        {company.policy && (
+          <PolicyEditor
+            companyId={company.id}
+            structured={company.policy.structured as unknown as StructuredPolicy}
+          />
+        )}
       </section>
 
       <section className="flex flex-col gap-4">

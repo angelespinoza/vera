@@ -45,7 +45,10 @@ export class OpenAiProvider implements LlmProvider {
           type: "json_schema",
           name: request.schemaName,
           schema: request.schema,
-          strict: true,
+          // strict:true exige que TODAS las propiedades estén en `required`
+          // (sin campos opcionales reales). Nuestros schemas de dominio usan
+          // campos opcionales, así que dejamos strict desactivado.
+          strict: false,
         },
       },
     });
