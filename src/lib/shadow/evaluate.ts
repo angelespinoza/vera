@@ -14,8 +14,9 @@ import type { ShadowEvaluationResult, ShadowOutcome } from "./types";
 
 // Mismos umbrales que src/lib/decision/engine.ts, duplicados a propósito:
 // esta vía debe poder evolucionar (o eliminarse) sin tocar el motor real.
+// Mantenidos en sync manualmente tras la recalibración (ver ese archivo).
 const APPROVE_COMPLIANCE_THRESHOLD = 0.95;
-const APPROVE_REVIEW_THRESHOLD = 0.1;
+const APPROVE_REVIEW_THRESHOLD = 0.25;
 const ESCALATE_COMPLIANCE_THRESHOLD = 0.7;
 
 function deriveOutcome(compliance: number, review: number): ShadowOutcome {
@@ -54,7 +55,9 @@ de 0 a 1 (no 0-100) para cada pregunta:
 - complies_with_policy: ¿el gasto cumple con la política de gastos de la empresa?
 - business_purpose_valid: ¿la justificación describe un propósito de negocio legítimo y creíble?
 - evidence_sufficient: ¿el comprobante es consistente y suficiente para respaldar la justificación?
-- requires_review: ¿el gasto presenta ambigüedad, riesgo o inconsistencia que amerite revisión humana?
+- requires_review: ¿el gasto presenta una señal concreta de riesgo real (posible fraude, gasto personal
+  disfrazado de negocio, inconsistencia clara entre los datos, o un patrón atípico) que justifique
+  detener el pago para revisión humana — más allá de la brevedad normal de una justificación cotidiana?
 - role_relevant (solo si se pide): ¿el gasto es relevante para el rol del empleado?
 Responde solo con las probabilidades, sin explicación.`;
 
@@ -108,6 +111,8 @@ export async function evaluateExpenseShadow(input: ShadowExpenseInput): Promise<
     provider: result.provider,
     model: result.model,
     latencyMs: result.latencyMs,
+    inputTokens: result.inputTokens,
+    outputTokens: result.outputTokens,
     compliesWithPolicy,
     businessPurposeValid,
     evidenceSufficient,

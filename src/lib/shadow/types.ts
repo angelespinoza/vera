@@ -5,6 +5,9 @@ export interface ShadowEvaluationResult {
   model: string;
   /** Latencia de la llamada, para comparar contra Jev (Etapa 7 / Módulo 10). */
   latencyMs: number;
+  /** Uso de tokens del proveedor, para comparar costo contra Jev. */
+  inputTokens?: number;
+  outputTokens?: number;
   compliesWithPolicy: number;
   businessPurposeValid: number;
   evidenceSufficient: number;

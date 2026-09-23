@@ -47,6 +47,8 @@ export class GeminiProvider implements LlmProvider {
       provider: this.name,
       model: this.model,
       latencyMs: Date.now() - start,
+      inputTokens: response.usageMetadata?.promptTokenCount,
+      outputTokens: response.usageMetadata?.candidatesTokenCount,
     };
   }
 }

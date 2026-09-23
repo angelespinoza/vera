@@ -9,11 +9,36 @@ import type { StructuredPolicy } from "@/lib/policy/types";
 import type { JevEvaluationResult } from "@/lib/jev/types";
 import type { ShadowEvaluationResult } from "@/lib/shadow/types";
 import type { DecisionResult } from "@/lib/decision/types";
+import { estimateCostUsd } from "@/lib/pricing";
+
+export type ComparativeOutcome = "APPROVED" | "REJECTED" | "REVIEW_REQUIRED" | "ERROR";
+
+/**
+ * Lectura de un solo motor (Jev o el LLM comparativo), aislada de las reglas
+ * determinísticas — a diferencia de `decision`, que sí las incluye y es la
+ * única que autoriza pagos. Solo para mostrar "Jev vs LLM" lado a lado en la
+ * UI (carga masiva); nunca se usa para decidir nada.
+ */
+export interface EngineComparativeResult {
+  outcome: ComparativeOutcome;
+  compliesWithPolicy?: number;
+  requiresReview?: number;
+  model?: string;
+  provider?: string;
+  latencyMs?: number;
+  inputTokens?: number;
+  outputTokens?: number;
+  /** USD estimado, o `undefined` si no hay precio configurado para esta fuente (ver src/lib/pricing.ts). */
+  costUsd?: number;
+  error?: string;
+}
 
 export interface PipelineResult {
   decision: DecisionResult;
   paymentTxHash?: string;
   paymentError?: string;
+  jev?: EngineComparativeResult;
+  shadow?: EngineComparativeResult;
 }
 
 /**
@@ -88,6 +113,43 @@ export async function evaluateAndDecideExpense(expenseId: string): Promise<Pipel
 
   const decision = decideExpense(ruleEvaluation, jevResult);
 
+  // Vista comparativa "Jev vs LLM" para la carga masiva (UI): mismo umbral
+  // que decideExpense pero ignorando las reglas, para que ambas columnas
+  // reflejen únicamente el juicio semántico de cada motor. Reutiliza
+  // decideExpense en vez de duplicar los umbrales (ver src/lib/shadow, que sí
+  // los duplica a propósito porque esa vía debe poder evolucionar sola).
+  const passthroughRules = { allPassed: true, categoryMatched: true, checks: [] };
+  const jevComparative: EngineComparativeResult | undefined = jevResult
+    ? {
+        outcome: jevResult.error ? "ERROR" : decideExpense(passthroughRules, jevResult).outcome,
+        compliesWithPolicy: jevResult.compliesWithPolicy?.probability,
+        requiresReview: jevResult.requiresReview?.probability,
+        model: jevResult.model,
+        latencyMs: jevResult.latencyMs,
+        inputTokens: jevResult.inputTokens,
+        outputTokens: jevResult.outputTokens,
+        costUsd: estimateCostUsd("jev", jevResult.inputTokens, jevResult.outputTokens),
+        error: jevResult.error,
+      }
+    : undefined;
+  const shadowComparative: EngineComparativeResult | undefined = shadowResult
+    ? {
+        outcome: shadowResult.error ? "ERROR" : shadowResult.outcome,
+        compliesWithPolicy: shadowResult.compliesWithPolicy,
+        requiresReview: shadowResult.requiresReview,
+        model: shadowResult.model,
+        provider: shadowResult.provider,
+        latencyMs: shadowResult.latencyMs,
+        inputTokens: shadowResult.inputTokens,
+        outputTokens: shadowResult.outputTokens,
+        costUsd:
+          shadowResult.provider === "openai" || shadowResult.provider === "gemini"
+            ? estimateCostUsd(shadowResult.provider, shadowResult.inputTokens, shadowResult.outputTokens)
+            : undefined,
+        error: shadowResult.error,
+      }
+    : undefined;
+
   // AI recommends. Policy decides. Stellar executes. — el pago solo se
   // intenta cuando el motor de decisión aprobó, y usa el resultado de
   // `decision` (reglas + Jev), nunca el de la vía shadow.
@@ -124,5 +186,5 @@ export async function evaluateAndDecideExpense(expenseId: string): Promise<Pipel
     },
   });
 
-  return { decision, paymentTxHash, paymentError };
+  return { decision, paymentTxHash, paymentError, jev: jevComparative, shadow: shadowComparative };
 }

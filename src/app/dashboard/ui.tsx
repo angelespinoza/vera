@@ -134,6 +134,7 @@ const STATUS_CONFIG: Record<string, { label: string; icon: string; colorClass: s
   APPROVED: { label: "Aprobado", icon: "✓", colorClass: "text-status-good" },
   REJECTED: { label: "Rechazado", icon: "✕", colorClass: "text-status-critical" },
   REVIEW_REQUIRED: { label: "Requiere revisión", icon: "!", colorClass: "text-status-warning" },
+  ERROR: { label: "Error", icon: "⚠", colorClass: "text-status-critical" },
 };
 
 /** Insignia de estado: nunca solo color — siempre ícono + etiqueta (dataviz skill). */

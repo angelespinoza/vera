@@ -15,6 +15,13 @@ export interface PolicyCategoryRule {
   maxAmount?: number;
   /** Periodo al que aplica maxAmount. */
   maxAmountPeriod?: "per_transaction" | "per_day" | "per_night" | "per_trip" | "annually";
+  /**
+   * A qué se suma maxAmount dentro del periodo: el total de la categoría
+   * completa ("category", default) o solo los gastos del mismo comercio
+   * ("merchant" — ej. "software hasta $300 anuales POR HERRAMIENTA" debe
+   * trackear cada herramienta por separado, no el total de software).
+   */
+  maxAmountScope?: "category" | "merchant";
   /** Monto a partir del cual se exige comprobante. */
   receiptRequiredAboveAmount?: number;
   /** El gasto debe ocurrir dentro de un viaje previamente aprobado. */
@@ -54,6 +61,12 @@ export const structuredPolicyJsonSchema = {
           maxAmountPeriod: {
             type: "string",
             enum: ["per_transaction", "per_day", "per_night", "per_trip", "annually"],
+          },
+          maxAmountScope: {
+            type: "string",
+            enum: ["category", "merchant"],
+            description:
+              '"merchant" si el límite es por herramienta/proveedor individual (ej. "per tool"); "category" (default) si es el total de la categoría.',
           },
           receiptRequiredAboveAmount: { type: "number" },
           requiresApprovedTrip: { type: "boolean" },

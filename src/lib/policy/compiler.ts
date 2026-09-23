@@ -10,6 +10,7 @@ Reglas:
 - Usa "requiresRoleRelevance" cuando la política condicione el gasto a que sea relevante para el rol del empleado (ej. software necesario para su trabajo).
 - Usa "requiresManagerApproval" cuando el texto lo exija explícitamente.
 - Usa "disallowedItems" para elementos explícitamente prohibidos (ej. alcohol).
+- Usa "maxAmountScope": "merchant" cuando el límite sea explícitamente por herramienta/proveedor individual (ej. "up to $300 annually per tool" -> el límite es por cada herramienta, no el total de la categoría). Usa "category" (o simplemente omite el campo) cuando el límite aplique al total de la categoría.
 - No inventes categorías ni límites que no estén en el texto.`;
 
 /** Convierte el texto de política en lenguaje natural a la estructura JSON. Etapa 2 / Módulo 3. */

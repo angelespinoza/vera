@@ -60,6 +60,8 @@ export class OpenAiProvider implements LlmProvider {
       provider: this.name,
       model: this.model,
       latencyMs: Date.now() - start,
+      inputTokens: response.usage?.input_tokens,
+      outputTokens: response.usage?.output_tokens,
     };
   }
 }

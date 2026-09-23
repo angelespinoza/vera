@@ -6,9 +6,16 @@ import type { DecisionResult } from "./types";
  * Confidence gate — Etapa 6 / Módulo 7. Umbrales de ejemplo del concepto
  * original (docs/CFO_Agent_Concepto_v1.md §6); pendientes de calibrar con
  * datos reales (ver docs/ALCANCE_MVP.md §4.2).
+ *
+ * APPROVE_REVIEW_THRESHOLD recalibrado de 0.1 a 0.25 tras la demo de carga
+ * masiva: con 0.1 casi ningún gasto limpio auto-aprobaba (Jev rara vez baja
+ * de ~15-20% de "requiere revisión" aunque el cumplimiento sea alto), lo que
+ * anulaba el valor de la automatización. Mismo valor duplicado a propósito
+ * en src/lib/shadow/evaluate.ts para que la comparación Jev vs. LLM siga
+ * siendo pareja.
  */
 const APPROVE_COMPLIANCE_THRESHOLD = 0.95;
-const APPROVE_REVIEW_THRESHOLD = 0.1;
+const APPROVE_REVIEW_THRESHOLD = 0.25;
 const ESCALATE_COMPLIANCE_THRESHOLD = 0.7;
 
 function pct(n: number): string {

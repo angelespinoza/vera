@@ -13,4 +13,7 @@ export interface JevEvaluationResult {
   model: string;
   /** Latencia de la llamada a Jev, para comparar con la vía LLM genérico (Etapa 7). */
   latencyMs: number;
+  /** Uso de tokens reportado por Jev, para comparar costo con la vía LLM genérico. */
+  inputTokens?: number;
+  outputTokens?: number;
 }

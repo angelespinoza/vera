@@ -25,6 +25,7 @@ export interface ExpenseForRules {
 async function sumExpensesInPeriod(
   expense: ExpenseForRules,
   period: string | undefined,
+  scope: "category" | "merchant" = "category",
 ): Promise<number> {
   if (!period || period === "per_transaction" || period === "per_trip" || period === "per_night") {
     return expense.amount;
@@ -47,6 +48,10 @@ async function sumExpensesInPeriod(
     where: {
       employeeId: expense.employeeId,
       category: expense.category,
+      // "merchant" (ej. software "$300 anuales por herramienta"): cada
+      // proveedor lleva su propio acumulado en vez de compartir el de toda
+      // la categoría.
+      ...(scope === "merchant" ? { merchant: { equals: expense.merchant, mode: "insensitive" as const } } : {}),
       status: { not: "EXTRACTED" },
       id: { not: expense.id },
       expenseDate: { gte: start, lt: end },
@@ -77,15 +82,22 @@ export async function evaluateExpenseRules(
 
   if (categoryRule) {
     if (categoryRule.maxAmount !== undefined) {
-      const periodTotal = await sumExpensesInPeriod(expense, categoryRule.maxAmountPeriod);
+      const periodTotal = await sumExpensesInPeriod(
+        expense,
+        categoryRule.maxAmountPeriod,
+        categoryRule.maxAmountScope,
+      );
       const passed = periodTotal <= categoryRule.maxAmount;
+      const isPerMerchant = categoryRule.maxAmountScope === "merchant";
       checks.push({
         rule: "amount_within_limit",
         label: `Monto dentro del límite (${categoryRule.maxAmount} ${policy.currency}${
           categoryRule.maxAmountPeriod ? ` / ${categoryRule.maxAmountPeriod}` : ""
-        })`,
+        }${isPerMerchant ? " por herramienta" : ""})`,
         passed,
-        detail: `Total en el periodo: ${periodTotal} ${policy.currency}`,
+        detail: isPerMerchant
+          ? `Total en el periodo para "${expense.merchant}": ${periodTotal} ${policy.currency}`
+          : `Total en el periodo: ${periodTotal} ${policy.currency}`,
       });
     }
 

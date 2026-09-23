@@ -3,6 +3,7 @@
 import { prisma } from "@/lib/prisma";
 import { evaluateAndDecideExpense } from "@/lib/expense/pipeline";
 import type { DecisionOutcome } from "@/lib/decision/types";
+import type { EngineComparativeResult } from "@/lib/expense/pipeline";
 
 export interface BulkRowInput {
   employeeEmail: string;
@@ -22,6 +23,9 @@ export interface BulkRowResult {
   outcome?: DecisionOutcome;
   reason?: string;
   paymentTxHash?: string;
+  /** Lectura aislada de cada motor, solo para el panel comparativo en vivo. */
+  jev?: EngineComparativeResult;
+  shadow?: EngineComparativeResult;
 }
 
 /**
@@ -86,5 +90,7 @@ export async function processBulkExpenseRow(
     outcome: result.decision.outcome,
     reason: result.decision.reason,
     paymentTxHash: result.paymentTxHash,
+    jev: result.jev,
+    shadow: result.shadow,
   };
 }

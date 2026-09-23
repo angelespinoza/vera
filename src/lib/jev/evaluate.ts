@@ -44,11 +44,15 @@ const EVIDENCE_SUFFICIENT = noul(
   },
 );
 
+// Redactado a propósito para pedir riesgo MATERIAL, no cualquier imprecisión
+// posible: la versión original ("¿alguna ambigüedad...?") invitaba al modelo
+// a encontrar duda en casi cualquier justificación breve y normal, dejando
+// casi todo en revisión humana sin importar qué tan limpio fuera el gasto.
 const REQUIRES_REVIEW = noul(
-  "¿Este gasto presenta alguna ambigüedad, riesgo o inconsistencia que amerite revisión humana antes de aprobarlo?",
+  "¿Este gasto presenta una señal concreta de riesgo real (posible fraude, gasto personal disfrazado de negocio, inconsistencia clara entre los datos, o un patrón atípico) que justifique detener el pago para revisión humana — más allá de la brevedad normal de una justificación cotidiana?",
   {
-    true: "Hay motivo razonable para una revisión humana",
-    false: "No hay señales de riesgo o ambigüedad",
+    true: "Hay una señal concreta de riesgo real que amerita pausar el pago",
+    false: "El gasto es rutinario; cualquier imprecisión en la justificación es normal y no amerita pausarlo",
   },
 );
 
@@ -74,7 +78,7 @@ export async function evaluateExpenseWithJev(input: JevExpenseInput): Promise<Je
   const start = Date.now();
 
   if (input.categoryRule?.requiresRoleRelevance) {
-    const { answers, model } = await client.systemOne({
+    const { answers, model, usage } = await client.systemOne({
       state: normalizedState,
       questions: {
         complies_with_policy: COMPLIES_WITH_POLICY,
@@ -98,10 +102,12 @@ export async function evaluateExpenseWithJev(input: JevExpenseInput): Promise<Je
       roleRelevant: { probability: answers.role_relevant.noul },
       model,
       latencyMs: Date.now() - start,
+      inputTokens: usage?.input_tokens,
+      outputTokens: usage?.output_tokens,
     };
   }
 
-  const { answers, model } = await client.systemOne({
+  const { answers, model, usage } = await client.systemOne({
     state: normalizedState,
     questions: {
       complies_with_policy: COMPLIES_WITH_POLICY,
@@ -117,5 +123,7 @@ export async function evaluateExpenseWithJev(input: JevExpenseInput): Promise<Je
     requiresReview: { probability: answers.requires_review.noul },
     model,
     latencyMs: Date.now() - start,
+    inputTokens: usage?.input_tokens,
+    outputTokens: usage?.output_tokens,
   };
 }

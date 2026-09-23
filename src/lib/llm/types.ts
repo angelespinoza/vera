@@ -28,6 +28,9 @@ export interface LlmStructuredResult<T> {
   provider: "openai" | "gemini";
   model: string;
   latencyMs: number;
+  /** Uso de tokens reportado por el proveedor, para el panel comparativo de costo (Etapa 7+). */
+  inputTokens?: number;
+  outputTokens?: number;
 }
 
 export interface LlmProvider {
