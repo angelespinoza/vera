@@ -77,10 +77,17 @@ model Expense {
   employeeId String
   employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
 
-  receiptFile     Bytes
-  receiptMimeType String
+  // Ambos null para gastos creados por carga masiva de Excel (sin foto real,
+  // ver src/app/actions/bulk.ts) — todo lo demás del pipeline es idéntico.
+  receiptFile     Bytes?
+  receiptMimeType String?
   // SHA-256 del archivo, para detectar comprobantes duplicados (Etapa 4).
+  // Null para filas de Excel: no hay imagen que hashear.
   receiptHash     String?
+
+  // true si el gasto se creó por carga masiva de Excel en vez del flujo
+  // normal de foto + confirmación del empleado.
+  bulkImported Boolean @default(false)
 
   // Salida cruda de la extracción con visión (ver src/lib/receipt/types.ts).
   extractedData Json?

@@ -7,6 +7,7 @@ import { PolicyForm } from "./policy-form";
 import { PolicyEditor } from "./policy-editor";
 import { ExpenseUploadForm } from "./expense-upload-form";
 import { ExpenseConfirmForm } from "./expense-confirm-form";
+import { BulkUpload } from "./bulk-upload";
 import { Card, StatTile, StatusBadge, Sidebar, SectionNav, truncateKey, CountBadge } from "./ui";
 import { IconTreasury, IconMetrics, IconPolicy, IconEmployees, IconExpenses } from "./icons";
 import type { RuleEvaluationResult } from "@/lib/rules/types";
@@ -295,6 +296,8 @@ export default async function DashboardPage({
           employees={company.employees.map((e) => ({ id: e.id, name: e.name }))}
         />
 
+        <BulkUpload companyId={company.id} />
+
         {pending.length > 0 && (
           <div className="flex flex-col gap-3 rounded-lg border border-status-warning/40 bg-status-warning/5 p-3">
             <h3 className="text-sm font-semibold text-status-warning">
@@ -307,7 +310,7 @@ export default async function DashboardPage({
                   key={expense.id}
                   expenseId={expense.id}
                   employeeName={expense.employee.name}
-                  receiptDataUrl={`data:${expense.receiptMimeType};base64,${Buffer.from(expense.receiptFile).toString("base64")}`}
+                  receiptDataUrl={`data:${expense.receiptMimeType};base64,${Buffer.from(expense.receiptFile!).toString("base64")}`}
                   amount={expense.amount}
                   currency={expense.currency}
                   merchant={expense.merchant}
