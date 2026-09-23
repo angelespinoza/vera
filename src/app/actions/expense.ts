@@ -6,9 +6,11 @@ import { prisma } from "@/lib/prisma";
 import { extractReceiptData } from "@/lib/receipt/extract";
 import { evaluateExpenseRules } from "@/lib/rules/engine";
 import { evaluateExpenseWithJev } from "@/lib/jev/evaluate";
+import { evaluateExpenseShadow } from "@/lib/shadow/evaluate";
 import { decideExpense } from "@/lib/decision/engine";
 import type { StructuredPolicy } from "@/lib/policy/types";
 import type { JevEvaluationResult } from "@/lib/jev/types";
+import type { ShadowEvaluationResult } from "@/lib/shadow/types";
 import type { ActionState } from "./company";
 
 export async function uploadExpenseReceipt(
@@ -130,25 +132,39 @@ export async function confirmExpense(
   );
 
   let jevResult: (JevEvaluationResult & { error?: string }) | null = null;
+  let shadowResult: (ShadowEvaluationResult & { error?: string }) | null = null;
+
   if (employee) {
     const categoryRule = structuredPolicy.categories.find((c) => c.category === updated.category);
-    try {
-      jevResult = await evaluateExpenseWithJev({
-        merchant: updated.merchant!,
-        amount: updated.amount!,
-        currency: updated.currency!,
-        category: updated.category!,
-        expenseDate: updated.expenseDate!.toISOString().slice(0, 10),
-        justification: updated.justification!,
-        employeeName: employee.name,
-        employeeRole: employee.role,
-        categoryRule,
-      });
-    } catch (err) {
-      jevResult = { error: err instanceof Error ? err.message : String(err) } as JevEvaluationResult & {
-        error: string;
-      };
-    }
+    const jevInput = {
+      merchant: updated.merchant!,
+      amount: updated.amount!,
+      currency: updated.currency!,
+      category: updated.category!,
+      expenseDate: updated.expenseDate!.toISOString().slice(0, 10),
+      justification: updated.justification!,
+      employeeName: employee.name,
+      employeeRole: employee.role,
+      categoryRule,
+    };
+
+    // Jev es la vía oficial que alimenta `decision`. La vía shadow (LLM
+    // genérico) corre en paralelo solo para comparar velocidad/acierto
+    // (Etapa 7) — nunca participa en la decisión real.
+    const [jevSettled, shadowSettled] = await Promise.allSettled([
+      evaluateExpenseWithJev(jevInput),
+      evaluateExpenseShadow(jevInput),
+    ]);
+
+    jevResult =
+      jevSettled.status === "fulfilled"
+        ? jevSettled.value
+        : ({ error: String(jevSettled.reason) } as JevEvaluationResult & { error: string });
+
+    shadowResult =
+      shadowSettled.status === "fulfilled"
+        ? shadowSettled.value
+        : ({ error: String(shadowSettled.reason) } as ShadowEvaluationResult & { error: string });
   }
 
   const decision = decideExpense(ruleEvaluation, jevResult);
@@ -158,6 +174,7 @@ export async function confirmExpense(
     data: {
       ruleResults: ruleEvaluation as object,
       jevResults: jevResult as unknown as object,
+      shadowResults: shadowResult as unknown as object,
       policySnapshot: structuredPolicy as unknown as object,
       decision: decision as unknown as object,
       status: decision.outcome,

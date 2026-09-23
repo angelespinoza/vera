@@ -11,4 +11,6 @@ export interface JevEvaluationResult {
   /** Solo presente si la categoría exige relevancia de rol (requiresRoleRelevance). */
   roleRelevant?: JevSignal;
   model: string;
+  /** Latencia de la llamada a Jev, para comparar con la vía LLM genérico (Etapa 7). */
+  latencyMs: number;
 }

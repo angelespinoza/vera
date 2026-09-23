@@ -10,6 +10,7 @@ import { ExpenseConfirmForm } from "./expense-confirm-form";
 import type { RuleEvaluationResult } from "@/lib/rules/types";
 import type { JevEvaluationResult } from "@/lib/jev/types";
 import type { DecisionResult } from "@/lib/decision/types";
+import type { ShadowEvaluationResult } from "@/lib/shadow/types";
 
 const DECISION_LABEL: Record<string, string> = {
   APPROVED: "APROBADO",
@@ -179,12 +180,47 @@ export default async function DashboardPage() {
         ).length > 0 && (
           <div className="flex flex-col gap-2">
             <h3 className="text-sm font-medium text-zinc-500">Evaluados</h3>
+            {(() => {
+              const withBoth = company.expenses.filter((e) => {
+                const j = e.jevResults as unknown as (JevEvaluationResult & { error?: string }) | null;
+                const s = e.shadowResults as unknown as (ShadowEvaluationResult & { error?: string }) | null;
+                return j && !j.error && s && !s.error;
+              });
+              if (withBoth.length === 0) return null;
+              const jevLatencies = withBoth.map(
+                (e) => (e.jevResults as unknown as JevEvaluationResult).latencyMs,
+              );
+              const shadowLatencies = withBoth.map(
+                (e) => (e.shadowResults as unknown as ShadowEvaluationResult).latencyMs,
+              );
+              const avg = (arr: number[]) => Math.round(arr.reduce((a, b) => a + b, 0) / arr.length);
+              const agreements = withBoth.filter((e) => {
+                const decision = e.decision as unknown as DecisionResult | null;
+                const shadow = e.shadowResults as unknown as ShadowEvaluationResult;
+                return decision && decision.outcome === shadow.outcome;
+              }).length;
+              return (
+                <p className="rounded-lg border border-zinc-200 p-3 text-xs text-zinc-500 dark:border-zinc-800">
+                  Panel comparativo Jev vs. LLM genérico ({withBoth.length} gasto
+                  {withBoth.length === 1 ? "" : "s"}): latencia promedio Jev{" "}
+                  <strong>{avg(jevLatencies)}ms</strong> vs. LLM genérico{" "}
+                  <strong>{avg(shadowLatencies)}ms</strong> — coinciden en el veredicto{" "}
+                  <strong>
+                    {agreements}/{withBoth.length}
+                  </strong>
+                  .
+                </p>
+              );
+            })()}
             <ul className="flex flex-col gap-2">
               {company.expenses
                 .filter((e) => ["APPROVED", "REJECTED", "REVIEW_REQUIRED"].includes(e.status))
                 .map((expense) => {
                   const evaluation = expense.ruleResults as unknown as RuleEvaluationResult | null;
                   const jev = expense.jevResults as unknown as (JevEvaluationResult & { error?: string }) | null;
+                  const shadow = expense.shadowResults as unknown as
+                    | (ShadowEvaluationResult & { error?: string })
+                    | null;
                   const decision = expense.decision as unknown as DecisionResult | null;
                   return (
                     <li
@@ -220,38 +256,63 @@ export default async function DashboardPage() {
                           </ul>
                         </div>
                       )}
-                      {jev && !jev.error && (
-                        <div className="mt-2 flex flex-col gap-0.5 border-t border-zinc-100 pt-2 text-xs dark:border-zinc-900">
-                          <p className="font-medium text-zinc-500">
-                            Jev (TypeSafe) — modelo {jev.model}:
-                          </p>
-                          <ul>
-                            <li>
-                              Cumple la política: {Math.round(jev.compliesWithPolicy.probability * 100)}%
-                            </li>
-                            <li>
-                              Propósito de negocio válido:{" "}
-                              {Math.round(jev.businessPurposeValid.probability * 100)}%
-                            </li>
-                            <li>
-                              Evidencia suficiente: {Math.round(jev.evidenceSufficient.probability * 100)}%
-                            </li>
-                            <li>
-                              Requiere revisión humana:{" "}
-                              {Math.round(jev.requiresReview.probability * 100)}%
-                            </li>
-                            {jev.roleRelevant && (
-                              <li>
-                                Relevante para el rol: {Math.round(jev.roleRelevant.probability * 100)}%
-                              </li>
+                      {(jev || shadow) && (
+                        <div className="mt-2 grid grid-cols-1 gap-3 border-t border-zinc-100 pt-2 text-xs dark:border-zinc-900 md:grid-cols-2">
+                          <div>
+                            <p className="font-medium text-zinc-500">
+                              Jev (oficial) —{" "}
+                              {jev?.error
+                                ? "error"
+                                : jev
+                                  ? `${jev.model}, ${jev.latencyMs}ms`
+                                  : "sin datos (gasto evaluado antes de esta función)"}
+                            </p>
+                            {jev && !jev.error ? (
+                              <ul>
+                                <li>Cumple política: {Math.round(jev.compliesWithPolicy.probability * 100)}%</li>
+                                <li>
+                                  Propósito válido: {Math.round(jev.businessPurposeValid.probability * 100)}%
+                                </li>
+                                <li>
+                                  Evidencia suficiente: {Math.round(jev.evidenceSufficient.probability * 100)}%
+                                </li>
+                                <li>Requiere revisión: {Math.round(jev.requiresReview.probability * 100)}%</li>
+                                {jev.roleRelevant && (
+                                  <li>Relevante al rol: {Math.round(jev.roleRelevant.probability * 100)}%</li>
+                                )}
+                              </ul>
+                            ) : (
+                              jev?.error && <p className="text-red-600">{jev.error}</p>
                             )}
-                          </ul>
+                          </div>
+                          <div>
+                            <p className="font-medium text-zinc-500">
+                              LLM genérico (comparativo) —{" "}
+                              {shadow?.error
+                                ? "error"
+                                : shadow
+                                  ? `${shadow.provider}/${shadow.model}, ${shadow.latencyMs}ms`
+                                  : "sin datos (gasto evaluado antes de esta función)"}
+                            </p>
+                            {shadow && !shadow.error ? (
+                              <ul>
+                                <li>Cumple política: {Math.round(shadow.compliesWithPolicy * 100)}%</li>
+                                <li>Propósito válido: {Math.round(shadow.businessPurposeValid * 100)}%</li>
+                                <li>Evidencia suficiente: {Math.round(shadow.evidenceSufficient * 100)}%</li>
+                                <li>Requiere revisión: {Math.round(shadow.requiresReview * 100)}%</li>
+                                {shadow.roleRelevant !== undefined && (
+                                  <li>Relevante al rol: {Math.round(shadow.roleRelevant * 100)}%</li>
+                                )}
+                                <li>
+                                  Veredicto: {DECISION_LABEL[shadow.outcome] ?? shadow.outcome}{" "}
+                                  {decision && shadow.outcome === decision.outcome ? "(coincide)" : "(difiere)"}
+                                </li>
+                              </ul>
+                            ) : (
+                              shadow?.error && <p className="text-red-600">{shadow.error}</p>
+                            )}
+                          </div>
                         </div>
-                      )}
-                      {jev?.error && (
-                        <p className="mt-2 border-t border-zinc-100 pt-2 text-xs text-red-600 dark:border-zinc-900">
-                          Jev no pudo evaluarse: {jev.error}
-                        </p>
                       )}
                     </li>
                   );

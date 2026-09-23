@@ -71,6 +71,7 @@ export async function evaluateExpenseWithJev(input: JevExpenseInput): Promise<Je
   const normalizedState = JSON.parse(JSON.stringify(state));
 
   const client = getClient();
+  const start = Date.now();
 
   if (input.categoryRule?.requiresRoleRelevance) {
     const { answers, model } = await client.systemOne({
@@ -96,6 +97,7 @@ export async function evaluateExpenseWithJev(input: JevExpenseInput): Promise<Je
       requiresReview: { probability: answers.requires_review.noul },
       roleRelevant: { probability: answers.role_relevant.noul },
       model,
+      latencyMs: Date.now() - start,
     };
   }
 
@@ -114,5 +116,6 @@ export async function evaluateExpenseWithJev(input: JevExpenseInput): Promise<Je
     evidenceSufficient: { probability: answers.evidence_sufficient.noul },
     requiresReview: { probability: answers.requires_review.noul },
     model,
+    latencyMs: Date.now() - start,
   };
 }

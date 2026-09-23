@@ -113,6 +113,10 @@ model Expense {
   // Resultado del motor de decisión (confidence gate). Ver src/lib/decision/types.ts.
   decision       Json?
 
+  // Vía comparativa con LLM genérico (Etapa 7 / Módulo 10) — puramente
+  // informativa, nunca influye en `decision`. Ver src/lib/shadow/types.ts.
+  shadowResults Json?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
