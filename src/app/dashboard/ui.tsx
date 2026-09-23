@@ -17,7 +17,7 @@ export function Card({
   return (
     <section
       id={id}
-      className={`flex scroll-mt-20 flex-col gap-4 rounded-xl border border-border-subtle bg-surface-card p-5 shadow-sm ${className}`}
+      className={`flex scroll-mt-6 flex-col gap-4 rounded-2xl border border-border-subtle bg-surface-card p-5 shadow-sm ${className}`}
     >
       {title && (
         <div className="flex items-center gap-2">
@@ -30,10 +30,46 @@ export function Card({
   );
 }
 
-/** Barra de navegación entre secciones — ancla a los `id` de cada Card. */
+export interface NavSection {
+  id: string;
+  label: string;
+  icon: ReactNode;
+}
+
+/** Sidebar fija de navegación entre secciones (desktop). Ancla a los `id` de cada Card. */
+export function Sidebar({ companyName, sections }: { companyName: string; sections: NavSection[] }) {
+  return (
+    <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r border-border-subtle bg-surface-sidebar p-4 md:flex">
+      <div className="flex items-center gap-2 px-2 pb-6">
+        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent text-sm font-bold text-accent-foreground">
+          V
+        </span>
+        <span className="text-lg font-semibold">Vera</span>
+      </div>
+      <nav className="flex flex-col gap-0.5">
+        {sections.map((s) => (
+          <a
+            key={s.id}
+            href={`#${s.id}`}
+            className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-text-secondary hover:bg-surface-muted hover:text-foreground"
+          >
+            {s.icon}
+            {s.label}
+          </a>
+        ))}
+      </nav>
+      <div className="mt-auto flex flex-col gap-1 rounded-lg border border-border-subtle bg-surface-muted p-3 text-xs text-text-secondary">
+        <p className="truncate font-medium text-foreground">{companyName}</p>
+        <p>Stellar testnet · CFO Agent</p>
+      </div>
+    </aside>
+  );
+}
+
+/** Nav horizontal de respaldo para mobile (la sidebar se oculta bajo `md`). */
 export function SectionNav({ sections }: { sections: { id: string; label: string }[] }) {
   return (
-    <nav className="sticky top-0 z-10 -mx-6 flex gap-1 overflow-x-auto border-b border-border-subtle bg-background/95 px-6 py-2 backdrop-blur md:-mx-8 md:px-8">
+    <nav className="sticky top-0 z-10 -mx-6 flex gap-1 overflow-x-auto border-b border-border-subtle bg-background/95 px-6 py-2 backdrop-blur md:hidden">
       {sections.map((s) => (
         <a
           key={s.id}
@@ -63,12 +99,33 @@ export function CountBadge({ count }: { count: number }) {
   );
 }
 
-export function StatTile({ label, value, hint }: { label: string; value: string; hint?: string }) {
+export function StatTile({
+  label,
+  value,
+  hint,
+  icon,
+}: {
+  label: string;
+  value: string;
+  hint?: string;
+  icon?: ReactNode;
+}) {
   return (
-    <div className="flex flex-col gap-1 rounded-lg border border-border-subtle bg-surface-muted px-4 py-3">
-      <span className="text-xs font-medium text-text-secondary">{label}</span>
+    <div className="flex flex-col gap-2 rounded-xl border border-border-subtle bg-surface-muted p-4">
+      <div className="flex items-center gap-2">
+        {icon && (
+          <span className="flex h-7 w-7 items-center justify-center rounded-full bg-accent/10 text-accent">
+            {icon}
+          </span>
+        )}
+        <span className="text-xs font-medium text-text-secondary">{label}</span>
+      </div>
       <span className="text-2xl font-semibold tabular-nums">{value}</span>
-      {hint && <span className="text-xs text-text-secondary">{hint}</span>}
+      {hint && (
+        <span className="w-fit rounded-full bg-surface-card px-2 py-0.5 text-xs text-text-secondary">
+          {hint}
+        </span>
+      )}
     </div>
   );
 }

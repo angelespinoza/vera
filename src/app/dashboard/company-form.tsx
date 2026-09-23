@@ -37,7 +37,7 @@ export function CompanyForm() {
       <button
         type="submit"
         disabled={pending}
-        className="rounded bg-foreground px-4 py-2 text-sm font-medium text-background disabled:opacity-50"
+        className="rounded bg-accent px-4 py-2 text-sm font-medium text-accent-foreground disabled:opacity-50"
       >
         {pending ? "Creando empresa y treasury en Stellar testnet…" : "Crear empresa"}
       </button>

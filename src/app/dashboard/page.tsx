@@ -7,7 +7,8 @@ import { PolicyForm } from "./policy-form";
 import { PolicyEditor } from "./policy-editor";
 import { ExpenseUploadForm } from "./expense-upload-form";
 import { ExpenseConfirmForm } from "./expense-confirm-form";
-import { Card, StatTile, StatusBadge, SectionNav, truncateKey, CountBadge } from "./ui";
+import { Card, StatTile, StatusBadge, Sidebar, SectionNav, truncateKey, CountBadge } from "./ui";
+import { IconTreasury, IconMetrics, IconPolicy, IconEmployees, IconExpenses } from "./icons";
 import type { RuleEvaluationResult } from "@/lib/rules/types";
 import type { JevEvaluationResult } from "@/lib/jev/types";
 import type { DecisionResult } from "@/lib/decision/types";
@@ -111,27 +112,29 @@ export default async function DashboardPage({
     return true;
   });
 
+  const navSections = [
+    { id: "treasury", label: "Treasury", icon: <IconTreasury /> },
+    ...(evaluated.length > 0 ? [{ id: "metrics", label: "Métricas", icon: <IconMetrics /> }] : []),
+    { id: "policy", label: "Política", icon: <IconPolicy /> },
+    { id: "employees", label: "Empleados", icon: <IconEmployees /> },
+    { id: "expenses", label: "Gastos", icon: <IconExpenses /> },
+  ];
+
   return (
-    <main className="mx-auto flex max-w-4xl flex-col gap-8 p-6 md:p-8">
-      <header className="flex flex-col gap-1">
-        <p className="text-xs font-medium tracking-wide text-text-secondary uppercase">
-          Vera — CFO Agent
-        </p>
-        <h1 className="text-2xl font-semibold">{company.name}</h1>
-        <p className="text-sm text-text-secondary">CFO: {company.cfoEmail}</p>
-      </header>
+    <div className="flex min-h-screen">
+      <Sidebar companyName={company.name} sections={navSections} />
+      <div className="flex min-w-0 flex-1 flex-col">
+        <SectionNav sections={navSections} />
+        <main className="mx-auto flex w-full max-w-4xl flex-col gap-6 p-6 md:p-8">
+          <header className="flex flex-col gap-1">
+            <p className="text-xs font-medium tracking-wide text-text-secondary uppercase md:hidden">
+              Vera — CFO Agent
+            </p>
+            <h1 className="text-2xl font-semibold">{company.name}</h1>
+            <p className="text-sm text-text-secondary">CFO: {company.cfoEmail}</p>
+          </header>
 
-      <SectionNav
-        sections={[
-          { id: "treasury", label: "Treasury" },
-          ...(evaluated.length > 0 ? [{ id: "metrics", label: "Métricas" }] : []),
-          { id: "policy", label: "Política" },
-          { id: "employees", label: "Empleados" },
-          { id: "expenses", label: "Gastos" },
-        ]}
-      />
-
-      {(!company.policy || company.employees.length === 0) && (
+          {(!company.policy || company.employees.length === 0) && (
         <Card className="border-status-warning/40 bg-status-warning/5">
           <p className="text-sm font-semibold">Primeros pasos</p>
           <ol className="flex flex-col gap-1 text-sm text-text-secondary">
@@ -197,7 +200,11 @@ export default async function DashboardPage({
       {evaluated.length > 0 && (
         <Card id="metrics" title="Métricas">
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-            <StatTile label="Gastos procesados" value={String(evaluated.length)} />
+            <StatTile
+              icon={<IconExpenses />}
+              label="Gastos procesados"
+              value={String(evaluated.length)}
+            />
             <StatTile
               label="Solo reglas"
               value={String(rulesOnly.length)}
@@ -214,10 +221,12 @@ export default async function DashboardPage({
               hint={`${pct(escalated.length)}%`}
             />
             <StatTile
+              icon={<IconMetrics />}
               label="Latencia prom. Jev"
               value={avgJevLatency !== null ? `${avgJevLatency}ms` : "—"}
             />
             <StatTile
+              icon={<IconTreasury />}
               label="USDC liquidado"
               value={usdcSettled.toFixed(2)}
               hint={`${paid.length} pago${paid.length === 1 ? "" : "s"}`}
@@ -373,7 +382,7 @@ export default async function DashboardPage({
               </div>
               <button
                 type="submit"
-                className="rounded bg-foreground px-3 py-1.5 text-sm font-medium text-background"
+                className="rounded bg-accent px-3 py-1.5 text-sm font-medium text-accent-foreground"
               >
                 Filtrar
               </button>
@@ -523,6 +532,8 @@ export default async function DashboardPage({
           </div>
         )}
       </Card>
-    </main>
+        </main>
+      </div>
+    </div>
   );
 }
