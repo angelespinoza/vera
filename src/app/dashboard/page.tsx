@@ -5,13 +5,19 @@ import { CompanyForm } from "./company-form";
 import { EmployeeForm } from "./employee-form";
 import { PolicyForm } from "./policy-form";
 import { PolicyEditor } from "./policy-editor";
+import { ExpenseUploadForm } from "./expense-upload-form";
+import { ExpenseConfirmForm } from "./expense-confirm-form";
 
 export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
   const company = await prisma.company.findFirst({
     orderBy: { createdAt: "asc" },
-    include: { employees: { orderBy: { createdAt: "asc" } }, policy: true },
+    include: {
+      employees: { orderBy: { createdAt: "asc" } },
+      policy: true,
+      expenses: { orderBy: { createdAt: "desc" }, include: { employee: true } },
+    },
   });
 
   if (!company) {
@@ -119,6 +125,60 @@ export default async function DashboardPage() {
           </ul>
         )}
         <EmployeeForm companyId={company.id} />
+      </section>
+
+      <section className="flex flex-col gap-4">
+        <h2 className="text-lg font-medium">Gastos</h2>
+        <ExpenseUploadForm
+          companyId={company.id}
+          employees={company.employees.map((e) => ({ id: e.id, name: e.name }))}
+        />
+
+        {company.expenses.filter((e) => e.status === "EXTRACTED").length > 0 && (
+          <div className="flex flex-col gap-3">
+            <h3 className="text-sm font-medium text-zinc-500">Pendientes de confirmación</h3>
+            {company.expenses
+              .filter((e) => e.status === "EXTRACTED")
+              .map((expense) => {
+                const extracted = expense.extractedData as { confidence?: number } | null;
+                return (
+                  <ExpenseConfirmForm
+                    key={expense.id}
+                    expenseId={expense.id}
+                    employeeName={expense.employee.name}
+                    receiptDataUrl={`data:${expense.receiptMimeType};base64,${Buffer.from(expense.receiptFile).toString("base64")}`}
+                    amount={expense.amount}
+                    currency={expense.currency}
+                    merchant={expense.merchant}
+                    expenseDate={expense.expenseDate?.toISOString().slice(0, 10)}
+                    category={expense.category}
+                    confidence={extracted?.confidence}
+                  />
+                );
+              })}
+          </div>
+        )}
+
+        {company.expenses.filter((e) => e.status === "SUBMITTED").length > 0 && (
+          <div className="flex flex-col gap-2">
+            <h3 className="text-sm font-medium text-zinc-500">Confirmados</h3>
+            <ul className="flex flex-col gap-2">
+              {company.expenses
+                .filter((e) => e.status === "SUBMITTED")
+                .map((expense) => (
+                  <li
+                    key={expense.id}
+                    className="rounded-lg border border-zinc-200 p-3 text-sm dark:border-zinc-800"
+                  >
+                    <span className="font-medium">{expense.employee.name}</span> —{" "}
+                    {expense.merchant} — {expense.amount} {expense.currency} —{" "}
+                    <span className="text-zinc-500">{expense.category}</span>
+                    <p className="text-zinc-500">{expense.justification}</p>
+                  </li>
+                ))}
+            </ul>
+          </div>
+        )}
       </section>
     </main>
   );

@@ -27,6 +27,7 @@ model Company {
 
   employees Employee[]
   policy    Policy?
+  expenses  Expense[]
 }
 
 model Employee {
@@ -44,6 +45,8 @@ model Employee {
   walletPublicKey          String @unique
   walletSecretKeyEncrypted String
 
+  expenses Expense[]
+
   @@unique([companyId, email])
 }
 
@@ -60,6 +63,38 @@ model Policy {
   // Estructura JSON producida por el policy compiler (o editada manualmente
   // por el CFO). Ver src/lib/policy/types.ts para la forma exacta.
   structured Json
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// Etapa 3 — Envío de gasto + evidencia (ver docs/ALCANCE_FUNCIONAL_ETAPAS.md, Módulo 4)
+
+model Expense {
+  id         String   @id @default(cuid())
+  companyId  String
+  company    Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  employeeId String
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  receiptFile     Bytes
+  receiptMimeType String
+
+  // Salida cruda de la extracción con visión (ver src/lib/receipt/types.ts).
+  extractedData Json?
+
+  // Datos confirmados/corregidos por el empleado — inicialmente prellenados
+  // con lo extraído, editables antes de confirmar.
+  amount        Float?
+  currency      String?
+  merchant      String?
+  expenseDate   DateTime?
+  category      String?
+  justification String?
+
+  // EXTRACTED: recién subido, esperando confirmación del empleado.
+  // SUBMITTED: confirmado, listo para evaluación (etapas siguientes).
+  status String @default("EXTRACTED")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
