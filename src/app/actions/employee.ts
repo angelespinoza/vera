@@ -44,6 +44,6 @@ export async function createEmployee(
     },
   });
 
-  revalidatePath("/dashboard");
+  revalidatePath("/dashboard", "layout");
   return {};
 }

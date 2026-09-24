@@ -37,7 +37,7 @@ export async function generatePolicy(
     update: { rawText, structured: structured as object },
   });
 
-  revalidatePath("/dashboard");
+  revalidatePath("/dashboard", "layout");
   return {};
 }
 
@@ -69,6 +69,6 @@ export async function updatePolicyStructured(
     data: { structured: structured as object },
   });
 
-  revalidatePath("/dashboard");
+  revalidatePath("/dashboard", "layout");
   return {};
 }

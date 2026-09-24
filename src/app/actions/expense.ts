@@ -54,7 +54,7 @@ export async function uploadExpenseReceipt(
     },
   });
 
-  revalidatePath("/dashboard");
+  revalidatePath("/dashboard", "layout");
   return {};
 }
 
@@ -100,6 +100,6 @@ export async function confirmExpense(
 
   await evaluateAndDecideExpense(expenseId);
 
-  revalidatePath("/dashboard");
+  revalidatePath("/dashboard", "layout");
   return {};
 }

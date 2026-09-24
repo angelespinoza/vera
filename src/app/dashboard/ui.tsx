@@ -30,59 +30,6 @@ export function Card({
   );
 }
 
-export interface NavSection {
-  id: string;
-  label: string;
-  icon: ReactNode;
-}
-
-/** Sidebar fija de navegación entre secciones (desktop). Ancla a los `id` de cada Card. */
-export function Sidebar({ companyName, sections }: { companyName: string; sections: NavSection[] }) {
-  return (
-    <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r border-border-subtle bg-surface-sidebar p-4 md:flex">
-      <div className="flex items-center gap-2 px-2 pb-6">
-        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent text-sm font-bold text-accent-foreground">
-          V
-        </span>
-        <span className="text-lg font-semibold">Vera</span>
-      </div>
-      <nav className="flex flex-col gap-0.5">
-        {sections.map((s) => (
-          <a
-            key={s.id}
-            href={`#${s.id}`}
-            className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-text-secondary hover:bg-surface-muted hover:text-foreground"
-          >
-            {s.icon}
-            {s.label}
-          </a>
-        ))}
-      </nav>
-      <div className="mt-auto flex flex-col gap-1 rounded-lg border border-border-subtle bg-surface-muted p-3 text-xs text-text-secondary">
-        <p className="truncate font-medium text-foreground">{companyName}</p>
-        <p>Stellar testnet · CFO Agent</p>
-      </div>
-    </aside>
-  );
-}
-
-/** Nav horizontal de respaldo para mobile (la sidebar se oculta bajo `md`). */
-export function SectionNav({ sections }: { sections: { id: string; label: string }[] }) {
-  return (
-    <nav className="sticky top-0 z-10 -mx-6 flex gap-1 overflow-x-auto border-b border-border-subtle bg-background/95 px-6 py-2 backdrop-blur md:hidden">
-      {sections.map((s) => (
-        <a
-          key={s.id}
-          href={`#${s.id}`}
-          className="shrink-0 rounded-full px-3 py-1 text-xs font-medium text-text-secondary hover:bg-surface-muted hover:text-foreground"
-        >
-          {s.label}
-        </a>
-      ))}
-    </nav>
-  );
-}
-
 /** Trunca una clave pública de Stellar para mostrarla sin romper el layout; la clave completa queda en el title. */
 export function truncateKey(key: string): string {
   if (key.length <= 16) return key;

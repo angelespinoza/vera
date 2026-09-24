@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import * as XLSX from "xlsx";
 import { processBulkExpenseRow, type BulkRowInput, type BulkRowResult } from "@/app/actions/bulk";
 import type { ComparativeOutcome, EngineComparativeResult } from "@/lib/expense/pipeline";
-import { StatusBadge } from "./ui";
+import { StatTile, StatusBadge } from "./ui";
 
 const MAX_ROWS = 200;
 
@@ -99,100 +99,42 @@ const SEGMENTS: { key: ComparativeOutcome; label: string; colorClass: string }[]
   { key: "ERROR", label: "Error", colorClass: "bg-status-critical" },
 ];
 
-function formatCost(usd: number | undefined): string | null {
-  if (usd === undefined) return null;
-  if (usd === 0) return "$0";
-  return usd < 0.001 ? `$${usd.toFixed(5)}` : `$${usd.toFixed(4)}`;
-}
+/**
+ * Columna única de decisión: el badge grande es SIEMPRE la decisión real
+ * (reglas + Jev + pago) — la única que mueve dinero. La lectura de Jev se
+ * pliega como detalle secundario junto al badge (es lo que la alimentó). El
+ * LLM genérico solo aparece como nota al pie, indentada y en texto plano, y
+ * únicamente cuando su veredicto difiere del real — nunca como un badge
+ * propio, para no dar la impresión de "dos jueces en desacuerdo" cuando en
+ * realidad solo uno decide (ver conversación sobre Jev vs. LLM).
+ */
+function DecisionCell({ result, status }: { result?: BulkRowResult; status: RowState["status"] }) {
+  if (status === "pending") return <span className="text-text-secondary">pendiente</span>;
+  if (status === "processing") return <span className="text-accent">procesando…</span>;
+  if (!result) return null;
 
-function EngineCell({
-  comparative,
-  rowFailed,
-}: {
-  comparative?: EngineComparativeResult;
-  rowFailed: boolean;
-}) {
-  if (rowFailed) return <span className="text-xs text-status-critical">N/A</span>;
-  if (!comparative) return <span className="text-text-secondary">—</span>;
-  if (comparative.error) {
-    return (
-      <span className="text-xs text-status-critical" title={comparative.error}>
-        ⚠ error
-      </span>
-    );
-  }
-  const cost = formatCost(comparative.costUsd);
+  const finalOutcome: ComparativeOutcome = result.ok ? (result.outcome ?? "ERROR") : "ERROR";
+  const jev = result.jev;
+  const shadow = result.shadow;
+  const shadowDiffers = result.ok && shadow && !shadow.error && shadow.outcome !== finalOutcome;
+
   return (
     <div className="flex flex-col gap-0.5 leading-tight">
-      <StatusBadge outcome={comparative.outcome} />
-      {comparative.compliesWithPolicy !== undefined && comparative.requiresReview !== undefined && (
-        <span className="text-[10px] text-text-secondary" title="Cumple política / requiere revisión">
-          {Math.round(comparative.compliesWithPolicy * 100)}% cumple ·{" "}
-          {Math.round(comparative.requiresReview * 100)}% revisión
-        </span>
-      )}
-      {comparative.latencyMs !== undefined && (
-        <span className="text-[10px] text-text-secondary">
-          {comparative.latencyMs}ms{cost ? ` · ${cost}` : ""}
-        </span>
+      <div className="flex items-center gap-1.5">
+        <StatusBadge outcome={finalOutcome} />
+        {result.ok && jev && !jev.error && jev.compliesWithPolicy !== undefined && (
+          <span className="text-[10px] text-text-secondary">({Math.round(jev.compliesWithPolicy * 100)}% Jev)</span>
+        )}
+      </div>
+      {shadowDiffers && shadow && (
+        <p className="pl-3 text-[10px] text-text-secondary">
+          ↳ el LLM comparativo habría dicho {OUTCOME_LABEL[shadow.outcome]}
+          {shadow.compliesWithPolicy !== undefined ? ` (${Math.round(shadow.compliesWithPolicy * 100)}%)` : ""} — solo
+          informativo
+        </p>
       )}
     </div>
   );
-}
-
-interface EngineStats {
-  count: number;
-  avgLatencyMs: number | null;
-  totalInputTokens: number;
-  totalOutputTokens: number;
-  totalCostUsd: number | null;
-}
-
-function statsOf(
-  rows: RowState[],
-  pick: (res: BulkRowResult) => EngineComparativeResult | undefined,
-): EngineStats {
-  let count = 0;
-  let latencySum = 0;
-  let latencyCount = 0;
-  let inputTokens = 0;
-  let outputTokens = 0;
-  let costSum = 0;
-  let costCount = 0;
-
-  for (const r of rows) {
-    if (r.status !== "done" || !r.result?.ok) continue;
-    const c = pick(r.result);
-    if (!c || c.error) continue;
-    count++;
-    if (c.latencyMs !== undefined) {
-      latencySum += c.latencyMs;
-      latencyCount++;
-    }
-    inputTokens += c.inputTokens ?? 0;
-    outputTokens += c.outputTokens ?? 0;
-    if (c.costUsd !== undefined) {
-      costSum += c.costUsd;
-      costCount++;
-    }
-  }
-
-  return {
-    count,
-    avgLatencyMs: latencyCount ? Math.round(latencySum / latencyCount) : null,
-    totalInputTokens: inputTokens,
-    totalOutputTokens: outputTokens,
-    totalCostUsd: costCount ? costSum : null,
-  };
-}
-
-/** mm:ss.d — reloj compartido de la carrera Jev vs LLM. */
-function formatClock(ms: number): string {
-  const deci = Math.floor(ms / 100) % 10;
-  const totalSeconds = Math.floor(ms / 1000);
-  const ss = totalSeconds % 60;
-  const mm = Math.floor(totalSeconds / 60);
-  return `${String(mm).padStart(2, "0")}:${String(ss).padStart(2, "0")}.${deci}`;
 }
 
 const OUTCOME_BG_CLASS: Record<ComparativeOutcome, string> = {
@@ -202,13 +144,6 @@ const OUTCOME_BG_CLASS: Record<ComparativeOutcome, string> = {
   ERROR: "bg-status-critical",
 };
 
-const OUTCOME_TINT_CLASS: Record<ComparativeOutcome, string> = {
-  APPROVED: "bg-status-good/15",
-  REVIEW_REQUIRED: "bg-status-warning/15",
-  REJECTED: "bg-status-critical/15",
-  ERROR: "bg-status-critical/15",
-};
-
 const OUTCOME_LABEL: Record<ComparativeOutcome, string> = {
   APPROVED: "APROBADO",
   REVIEW_REQUIRED: "REVISIÓN",
@@ -216,105 +151,223 @@ const OUTCOME_LABEL: Record<ComparativeOutcome, string> = {
   ERROR: "ERROR",
 };
 
-interface RaceLogRow {
-  index: number;
-  merchant: string;
-  outcome: ComparativeOutcome;
-  compliesWithPolicy?: number;
+const OUTCOME_TEXT_CLASS: Record<ComparativeOutcome, string> = {
+  APPROVED: "text-status-good",
+  REVIEW_REQUIRED: "text-status-warning",
+  REJECTED: "text-status-critical",
+  ERROR: "text-status-critical",
+};
+
+const OUTCOME_ICON: Record<ComparativeOutcome, string> = {
+  APPROVED: "✓",
+  REVIEW_REQUIRED: "!",
+  REJECTED: "✗",
+  ERROR: "✗",
+};
+
+function merchantInitials(name: string): string {
+  const words = name.trim().split(/\s+/).filter(Boolean);
+  if (words.length === 0) return "—";
+  if (words.length === 1) return words[0].slice(0, 2).toUpperCase();
+  return (words[0][0] + words[1][0]).toUpperCase();
 }
 
 /**
- * Panel estilo terminal para un motor (Jev o LLM genérico): log de las
- * últimas filas resueltas, grid de puntos que se llena fila por fila (mismo
- * total que la hoja cargada), y el conteo grande "analizados / total".
- * Estilo inspirado en la referencia "mismo reloj" de TypeSafe, pero con nuestra
- * propia paleta (accent/status) en vez del halftone rosa/negro original.
+ * Grid de "logos" (iniciales del comercio) que se van resaltando fila por
+ * fila conforme Jev las analiza — inspirado en la demo de TypeSafe/Firecrawl
+ * (grid de empresas Fortune 1000), adaptado a nuestros propios comercios y
+ * paleta de estado.
  */
-function EngineRacePanel({
-  label,
-  markerClass,
+function MerchantGrid({
   rows,
   pick,
-  tally,
-  total,
-  stats,
 }: {
-  label: string;
-  markerClass: string;
   rows: RowState[];
   pick: (res: BulkRowResult) => EngineComparativeResult | undefined;
-  tally: Tally;
-  total: number;
-  stats: EngineStats;
 }) {
-  const recent: RaceLogRow[] = [];
-  for (let i = rows.length - 1; i >= 0 && recent.length < 5; i--) {
+  return (
+    <div className="flex flex-wrap gap-1">
+      {rows.map((r, i) => {
+        const outcome = engineOutcomeOf(r, pick);
+        const processing = r.status === "processing";
+        return (
+          <span
+            key={i}
+            className={`flex h-6 w-6 items-center justify-center rounded-[4px] text-[9px] font-semibold transition-colors duration-300 ${
+              outcome
+                ? `${OUTCOME_BG_CLASS[outcome]} text-white`
+                : processing
+                  ? "border-2 border-accent text-accent"
+                  : "border border-border-subtle bg-surface-muted text-text-secondary"
+            }`}
+            title={`#${i + 1} ${r.row.merchant}${outcome ? `: ${OUTCOME_LABEL[outcome]}` : ""}`}
+          >
+            {merchantInitials(r.row.merchant || "—")}
+          </span>
+        );
+      })}
+    </div>
+  );
+}
+
+/** Una fila de criterio de Jev, como barra horizontal (etiqueta + barra + valor). */
+function JevBar({ label, value }: { label: string; value: number | undefined }) {
+  const pct = value !== undefined ? Math.round(value * 100) : null;
+  return (
+    <div className="flex items-center gap-3">
+      <div className="w-36 shrink-0">
+        <p className="text-xs text-foreground">{label}</p>
+        <p className="font-mono text-[10px] text-text-secondary">noul</p>
+      </div>
+      <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-surface-muted">
+        <div
+          className="h-full rounded-full bg-accent transition-all duration-500"
+          style={{ width: pct !== null ? `${pct}%` : "0%" }}
+        />
+      </div>
+      <span className="w-10 shrink-0 text-right font-mono text-xs tabular-nums text-text-secondary">
+        {pct !== null ? (pct / 100).toFixed(2) : "—"}
+      </span>
+    </div>
+  );
+}
+
+/** Ficha con el detalle completo de Jev para el último gasto resuelto, en vivo. */
+function LiveAnalysisCard({ row }: { row: RowState | undefined }) {
+  const jev = row?.result?.ok ? row.result.jev : undefined;
+  if (!row || !jev || jev.error) {
+    return (
+      <div className="flex flex-col gap-2 rounded-lg border border-border-subtle bg-surface-card p-3">
+        <p className="text-xs font-semibold text-text-secondary">Jev · Análisis en vivo</p>
+        <p className="text-sm text-text-secondary">Esperando a Jev…</p>
+      </div>
+    );
+  }
+  return (
+    <div className="flex flex-col gap-3 rounded-lg border border-border-subtle bg-surface-card p-3">
+      <div className="flex items-center justify-between">
+        <p className="text-xs font-semibold text-text-secondary">Jev · Análisis en vivo</p>
+        {jev.latencyMs !== undefined && (
+          <span className="text-[10px] text-text-secondary">respondido en {jev.latencyMs}ms</span>
+        )}
+      </div>
+      <div>
+        <p className="font-medium text-foreground">{row.row.merchant}</p>
+        <p className="text-xs text-text-secondary">
+          {row.row.category} · {row.row.amount} {row.row.currency} · {row.row.employeeEmail}
+        </p>
+      </div>
+      <div className="flex flex-col gap-2">
+        <JevBar label="Cumple política" value={jev.compliesWithPolicy} />
+        <JevBar label="Propósito válido" value={jev.businessPurposeValid} />
+        <JevBar label="Evidencia suficiente" value={jev.evidenceSufficient} />
+        <JevBar label="Requiere revisión" value={jev.requiresReview} />
+        {jev.roleRelevant !== undefined && <JevBar label="Relevante al rol" value={jev.roleRelevant} />}
+      </div>
+    </div>
+  );
+}
+
+function categoryTallyOf(rows: RowState[]): [string, number][] {
+  const counts = new Map<string, number>();
+  for (const r of rows) {
+    if (r.status !== "done") continue;
+    const cat = r.row.category || "—";
+    counts.set(cat, (counts.get(cat) ?? 0) + 1);
+  }
+  return Array.from(counts.entries()).sort((a, b) => b[1] - a[1]);
+}
+
+/** Barras agregadas: por categoría del gasto y por veredicto de Jev. */
+function VerdictsPanel({ rows, tally }: { rows: RowState[]; tally: Tally }) {
+  const categories = categoryTallyOf(rows);
+  const maxCategoryCount = Math.max(1, ...categories.map(([, n]) => n));
+  const analyzed = tally.APPROVED + tally.REVIEW_REQUIRED + tally.REJECTED + tally.ERROR;
+  return (
+    <div className="flex flex-col gap-4 rounded-lg border border-border-subtle bg-surface-card p-3 sm:flex-row sm:gap-6">
+      <div className="flex-1">
+        <p className="mb-2 text-xs font-semibold text-text-secondary">Por categoría</p>
+        <div className="flex flex-col gap-1.5">
+          {categories.length === 0 && <span className="text-xs text-text-secondary">—</span>}
+          {categories.map(([cat, count]) => (
+            <div key={cat} className="flex items-center gap-2 text-xs">
+              <span className="w-24 shrink-0 truncate text-text-secondary">{cat}</span>
+              <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-surface-muted">
+                <div
+                  className="h-full rounded-full bg-accent transition-all duration-500"
+                  style={{ width: `${(count / maxCategoryCount) * 100}%` }}
+                />
+              </div>
+              <span className="w-6 shrink-0 text-right tabular-nums text-foreground">{count}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className="flex-1">
+        <p className="mb-2 text-xs font-semibold text-text-secondary">Veredicto de Jev ({analyzed})</p>
+        <div className="flex flex-col gap-1.5">
+          {SEGMENTS.filter((s) => tally[s.key] > 0).map((s) => (
+            <div key={s.key} className="flex items-center gap-2 text-xs">
+              <span className="w-24 shrink-0 truncate text-text-secondary">{s.label}</span>
+              <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-surface-muted">
+                <div
+                  className={`h-full rounded-full ${s.colorClass} transition-all duration-500`}
+                  style={{ width: `${(tally[s.key] / Math.max(1, analyzed)) * 100}%` }}
+                />
+              </div>
+              <span className="w-6 shrink-0 text-right tabular-nums text-foreground">{tally[s.key]}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** Feed tipo terminal con las últimas filas resueltas por Jev. */
+function TerminalFeed({
+  rows,
+  pick,
+  totalRows,
+}: {
+  rows: RowState[];
+  pick: (res: BulkRowResult) => EngineComparativeResult | undefined;
+  totalRows: number;
+}) {
+  const lines: { merchant: string; category: string; outcome: ComparativeOutcome; pct: string; ms: string }[] = [];
+  for (let i = rows.length - 1; i >= 0 && lines.length < 8; i--) {
     const r = rows[i];
     const outcome = engineOutcomeOf(r, pick);
     if (!outcome) continue;
     const c = r.result?.ok ? pick(r.result) : undefined;
-    recent.push({ index: i + 1, merchant: r.row.merchant || "—", outcome, compliesWithPolicy: c?.compliesWithPolicy });
+    lines.push({
+      merchant: r.row.merchant || "—",
+      category: r.row.category || "—",
+      outcome,
+      pct: c?.compliesWithPolicy !== undefined ? `${Math.round(c.compliesWithPolicy * 100)}%` : "—",
+      ms: c?.latencyMs !== undefined ? `${c.latencyMs}ms` : "—",
+    });
   }
 
-  const analyzed = tally.APPROVED + tally.REVIEW_REQUIRED + tally.REJECTED + tally.ERROR;
-  const totalCostFormatted = formatCost(stats.totalCostUsd ?? undefined);
-
   return (
-    <div className="flex flex-col gap-2 rounded-md border border-border-subtle bg-surface-card p-2 font-mono">
-      <div className="flex items-center justify-between border-b border-border-subtle pb-1.5">
-        <div className="flex items-center gap-1.5 text-[11px] font-semibold tracking-wide text-foreground">
-          <span className={`inline-block h-2 w-2 ${markerClass}`} aria-hidden />
-          {label}
-        </div>
-        <div className="flex gap-1" aria-hidden>
-          <span className="h-2 w-2 border border-border-subtle" />
-          <span className="h-2 w-2 border border-border-subtle" />
-        </div>
+    <div className="overflow-hidden rounded-lg bg-neutral-900 font-mono text-[11px]">
+      <div className="flex items-center gap-1.5 border-b border-neutral-700 px-3 py-1.5">
+        <span className="h-2 w-2 rounded-full bg-neutral-600" aria-hidden />
+        <span className="h-2 w-2 rounded-full bg-neutral-600" aria-hidden />
+        <span className="h-2 w-2 rounded-full bg-neutral-600" aria-hidden />
+        <span className="ml-2 text-neutral-500">jev · análisis en vivo</span>
       </div>
-
-      <div className="flex flex-col gap-0.5 rounded bg-surface-muted p-1.5 text-[11px]">
-        {recent.length === 0 && <span className="text-text-secondary">esperando…</span>}
-        {recent.map((r, idx) => (
-          <div
-            key={r.index}
-            className={`flex items-center justify-between gap-2 rounded px-1 py-0.5 ${idx === 0 ? OUTCOME_TINT_CLASS[r.outcome] : ""}`}
-          >
-            <span className="truncate text-text-secondary">
-              #{String(r.index).padStart(3, "0")} {r.merchant}
-            </span>
-            <span className={idx === 0 ? "font-semibold text-foreground" : "text-text-secondary"}>
-              {OUTCOME_LABEL[r.outcome]}
-              {r.compliesWithPolicy !== undefined ? ` ${Math.round(r.compliesWithPolicy * 100)}%` : ""}
-            </span>
-          </div>
+      <div className="flex flex-col gap-1 p-3">
+        <p className="text-neutral-500">$ jev analyze ./carga-masiva.xlsx --questions 4 --parallel {totalRows}</p>
+        {lines.length === 0 && <p className="text-neutral-600">esperando resultados…</p>}
+        {lines.map((line, idx) => (
+          <p key={idx} className={idx === 0 ? "text-neutral-100" : "text-neutral-400"}>
+            <span className={OUTCOME_TEXT_CLASS[line.outcome]}>{OUTCOME_ICON[line.outcome]}</span>{" "}
+            {line.merchant.padEnd(20).slice(0, 20)} {line.category.padEnd(13).slice(0, 13)}{" "}
+            <span className={OUTCOME_TEXT_CLASS[line.outcome]}>{OUTCOME_LABEL[line.outcome].padEnd(10)}</span>{" "}
+            {line.pct.padStart(4)} {line.ms}
+          </p>
         ))}
-      </div>
-
-      <div className="flex flex-wrap gap-[2px]">
-        {rows.map((r, i) => {
-          const outcome = engineOutcomeOf(r, pick);
-          return (
-            <span
-              key={i}
-              className={`h-[6px] w-[6px] rounded-[1px] ${
-                outcome ? OUTCOME_BG_CLASS[outcome] : "border border-border-subtle bg-surface-muted"
-              }`}
-              title={outcome ? `#${i + 1} ${r.row.merchant}: ${OUTCOME_LABEL[outcome]}` : `#${i + 1} pendiente`}
-            />
-          );
-        })}
-      </div>
-
-      <p className="text-[10px] text-text-secondary">
-        {stats.avgLatencyMs !== null ? `${stats.avgLatencyMs}ms prom.` : "—"} ·{" "}
-        {stats.totalInputTokens + stats.totalOutputTokens} tokens · {totalCostFormatted ?? "sin precio"}
-      </p>
-
-      <div>
-        <p className="text-[10px] tracking-wide text-text-secondary">ANALIZADOS</p>
-        <p className="text-2xl font-bold tabular-nums text-foreground">
-          {analyzed} <span className="text-sm font-normal text-text-secondary">/ {total}</span>
-        </p>
       </div>
     </div>
   );
@@ -384,10 +437,23 @@ export function BulkUpload({ companyId }: { companyId: string }) {
 
   const finalTally = useMemo(() => tallyOf(rows, finalOutcomeOf), [rows]);
   const jevTally = useMemo(() => tallyOf(rows, (r) => engineOutcomeOf(r, (res) => res.jev)), [rows]);
-  const llmTally = useMemo(() => tallyOf(rows, (r) => engineOutcomeOf(r, (res) => res.shadow)), [rows]);
-  const jevStats = useMemo(() => statsOf(rows, (res) => res.jev), [rows]);
-  const llmStats = useMemo(() => statsOf(rows, (res) => res.shadow), [rows]);
   const done = rows.filter((r) => r.status === "done").length;
+
+  const jevAnalyzed = jevTally.APPROVED + jevTally.REVIEW_REQUIRED + jevTally.REJECTED + jevTally.ERROR;
+  const flaggedByJev = jevTally.REVIEW_REQUIRED + jevTally.REJECTED + jevTally.ERROR;
+  const typedAnswers = rows.reduce((acc, r) => {
+    const jev = r.result?.ok ? r.result.jev : undefined;
+    if (!jev || jev.error) return acc;
+    return acc + 4 + (jev.roleRelevant !== undefined ? 1 : 0);
+  }, 0);
+  const elapsedSeconds = elapsedMs / 1000;
+  const answersPerSec = elapsedSeconds > 0 ? Math.round(typedAnswers / elapsedSeconds) : 0;
+  // Prioriza la última fila con lectura válida de Jev (si la última en
+  // terminar fue un error, ej. empleado inexistente, no tiene sentido
+  // mostrarla como "esperando a Jev" cuando ya hay lecturas previas).
+  const reversedDone = [...rows].reverse().filter((r) => r.status === "done");
+  const lastDoneRow =
+    reversedDone.find((r) => r.result?.ok && r.result.jev && !r.result.jev.error) ?? reversedDone[0];
 
   return (
     <div className="flex flex-col gap-3 rounded-lg border border-border-subtle bg-surface-muted p-4">
@@ -429,109 +495,77 @@ export function BulkUpload({ companyId }: { companyId: string }) {
           </button>
 
           {(running || done > 0) && (
-            <div className="flex flex-col gap-2 rounded-lg border border-border-subtle bg-surface-muted p-3">
-              <p className="font-mono text-[10px] tracking-wide text-text-secondary">
-                SIMULACIÓN EN VIVO · MISMO RELOJ PARA AMBOS MOTORES
-              </p>
-
-              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-border-subtle pb-2 font-mono text-[11px]">
-                <span className="font-semibold text-foreground">DECISIÓN FINAL:</span>
-                {SEGMENTS.filter((s) => finalTally[s.key] > 0).map((s) => (
-                  <span key={s.key} className="inline-flex items-center gap-1 text-text-secondary">
-                    <span className={`inline-block h-2 w-2 rounded-[1px] ${s.colorClass}`} aria-hidden />
-                    {s.label}: <strong className="text-foreground">{finalTally[s.key]}</strong>
-                  </span>
-                ))}
-                {done === 0 && <span className="text-text-secondary">pendiente</span>}
+            <div className="flex flex-col gap-4 rounded-lg border border-border-subtle bg-surface-card p-4">
+              <div>
+                <p className="text-2xl font-semibold text-foreground sm:text-3xl">
+                  Jev analizó {jevAnalyzed} gasto{jevAnalyzed === 1 ? "" : "s"}{" "}
+                  <span className="text-text-secondary">en</span>{" "}
+                  <span className="text-accent">{elapsedSeconds.toFixed(2)}s</span>
+                  {running ? "…" : "."}
+                </p>
+                <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-text-secondary">
+                  <span className="font-medium text-foreground">Decisión final (reglas + Jev + pago):</span>
+                  {SEGMENTS.filter((s) => finalTally[s.key] > 0).map((s) => (
+                    <span key={s.key} className="inline-flex items-center gap-1">
+                      <span className={`inline-block h-2 w-2 rounded-[1px] ${s.colorClass}`} aria-hidden />
+                      {s.label}: <strong className="text-foreground">{finalTally[s.key]}</strong>
+                    </span>
+                  ))}
+                  {done === 0 && <span>pendiente</span>}
+                </div>
               </div>
 
-              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                <EngineRacePanel
-                  label="JEV.SYSTEM_ONE"
-                  markerClass="bg-accent"
-                  rows={rows}
-                  pick={(res) => res.jev}
-                  tally={jevTally}
-                  total={rows.length}
-                  stats={jevStats}
-                />
-                <EngineRacePanel
-                  label="LLM.GENERICO"
-                  markerClass="bg-text-secondary"
-                  rows={rows}
-                  pick={(res) => res.shadow}
-                  tally={llmTally}
-                  total={rows.length}
-                  stats={llmStats}
-                />
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                <StatTile label="Respuestas tipadas" value={String(typedAnswers)} hint="4-5 por gasto" />
+                <StatTile label="Respuestas / seg" value={String(answersPerSec)} hint={running ? "en vivo" : "final"} />
+                <StatTile label="Filas del Excel" value={`${jevAnalyzed}/${rows.length}`} hint="analizadas" />
+                <StatTile label="Marcadas por Jev" value={String(flaggedByJev)} hint="revisión o rechazo" />
               </div>
 
-              <div className="flex items-center justify-between border-t border-border-subtle pt-2 font-mono">
-                <span className="text-[10px] tracking-wide text-text-secondary">RELOJ</span>
-                <span className="text-2xl font-bold tabular-nums text-accent">{formatClock(elapsedMs)}</span>
-                <span className="text-[10px] tracking-wide text-text-secondary">
-                  {running ? "EN CURSO" : done === rows.length && rows.length > 0 ? "COMPLETADO" : "LISTO"}
-                </span>
+              <div>
+                <p className="mb-1.5 text-xs font-semibold text-text-secondary">Gastos cargados ({rows.length})</p>
+                <MerchantGrid rows={rows} pick={(res) => res.jev} />
               </div>
+
+              <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+                <LiveAnalysisCard row={lastDoneRow} />
+                <VerdictsPanel rows={rows} tally={jevTally} />
+              </div>
+
+              <TerminalFeed rows={rows} pick={(res) => res.jev} totalRows={rows.length} />
             </div>
           )}
 
           <div className="max-h-96 overflow-auto rounded-lg border border-border-subtle bg-surface-card">
-            <table className="w-full min-w-[820px] text-left text-xs">
+            <table className="w-full min-w-[560px] text-left text-xs">
               <thead className="sticky top-0 bg-surface-muted">
                 <tr className="border-b border-border-subtle text-text-secondary">
                   <th className="px-2 py-1.5">#</th>
                   <th className="px-2 py-1.5">Empleado</th>
                   <th className="px-2 py-1.5">Comercio</th>
                   <th className="px-2 py-1.5">Monto</th>
-                  <th className="px-2 py-1.5">Análisis Jev</th>
-                  <th className="px-2 py-1.5">Análisis LLM</th>
                   <th className="px-2 py-1.5">Decisión final</th>
                   <th className="px-2 py-1.5">Detalle</th>
                 </tr>
               </thead>
               <tbody>
-                {rows.map((r, i) => {
-                  const rowFailed = r.status === "done" && r.result !== undefined && !r.result.ok;
-                  return (
-                    <tr key={i} className="border-b border-border-subtle last:border-0 align-top">
-                      <td className="px-2 py-1.5 text-text-secondary">{i + 1}</td>
-                      <td className="px-2 py-1.5">{r.row.employeeEmail}</td>
-                      <td className="px-2 py-1.5">{r.row.merchant}</td>
-                      <td className="px-2 py-1.5 tabular-nums">
-                        {r.row.amount} {r.row.currency}
-                      </td>
-                      <td className="px-2 py-1.5">
-                        {r.status === "pending" && <span className="text-text-secondary">—</span>}
-                        {r.status === "processing" && <span className="text-accent">…</span>}
-                        {r.status === "done" && (
-                          <EngineCell comparative={r.result?.jev} rowFailed={rowFailed} />
-                        )}
-                      </td>
-                      <td className="px-2 py-1.5">
-                        {r.status === "pending" && <span className="text-text-secondary">—</span>}
-                        {r.status === "processing" && <span className="text-accent">…</span>}
-                        {r.status === "done" && (
-                          <EngineCell comparative={r.result?.shadow} rowFailed={rowFailed} />
-                        )}
-                      </td>
-                      <td className="px-2 py-1.5">
-                        {r.status === "pending" && <span className="text-text-secondary">pendiente</span>}
-                        {r.status === "processing" && <span className="text-accent">procesando…</span>}
-                        {r.status === "done" && r.result?.ok && r.result.outcome && (
-                          <StatusBadge outcome={r.result.outcome} />
-                        )}
-                        {r.status === "done" && !r.result?.ok && (
-                          <StatusBadge outcome="ERROR" />
-                        )}
-                      </td>
-                      <td className="px-2 py-1.5 text-text-secondary">
-                        {r.result?.error ?? r.result?.reason ?? ""}
-                        {r.result?.paymentTxHash && " · pagado"}
-                      </td>
-                    </tr>
-                  );
-                })}
+                {rows.map((r, i) => (
+                  <tr key={i} className="border-b border-border-subtle last:border-0 align-top">
+                    <td className="px-2 py-1.5 text-text-secondary">{i + 1}</td>
+                    <td className="px-2 py-1.5">{r.row.employeeEmail}</td>
+                    <td className="px-2 py-1.5">{r.row.merchant}</td>
+                    <td className="px-2 py-1.5 tabular-nums">
+                      {r.row.amount} {r.row.currency}
+                    </td>
+                    <td className="px-2 py-1.5">
+                      <DecisionCell result={r.result} status={r.status} />
+                    </td>
+                    <td className="px-2 py-1.5 text-text-secondary">
+                      {r.result?.error ?? r.result?.reason ?? ""}
+                      {r.result?.paymentTxHash && " · pagado"}
+                    </td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>

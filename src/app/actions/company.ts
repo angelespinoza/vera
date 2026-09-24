@@ -37,6 +37,6 @@ export async function createCompany(
     },
   });
 
-  revalidatePath("/dashboard");
+  revalidatePath("/dashboard", "layout");
   return {};
 }

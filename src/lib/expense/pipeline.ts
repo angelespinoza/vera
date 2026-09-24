@@ -22,7 +22,11 @@ export type ComparativeOutcome = "APPROVED" | "REJECTED" | "REVIEW_REQUIRED" | "
 export interface EngineComparativeResult {
   outcome: ComparativeOutcome;
   compliesWithPolicy?: number;
+  businessPurposeValid?: number;
+  evidenceSufficient?: number;
   requiresReview?: number;
+  /** Solo presente si la categoría exige relevancia de rol. */
+  roleRelevant?: number;
   model?: string;
   provider?: string;
   latencyMs?: number;
@@ -123,7 +127,10 @@ export async function evaluateAndDecideExpense(expenseId: string): Promise<Pipel
     ? {
         outcome: jevResult.error ? "ERROR" : decideExpense(passthroughRules, jevResult).outcome,
         compliesWithPolicy: jevResult.compliesWithPolicy?.probability,
+        businessPurposeValid: jevResult.businessPurposeValid?.probability,
+        evidenceSufficient: jevResult.evidenceSufficient?.probability,
         requiresReview: jevResult.requiresReview?.probability,
+        roleRelevant: jevResult.roleRelevant?.probability,
         model: jevResult.model,
         latencyMs: jevResult.latencyMs,
         inputTokens: jevResult.inputTokens,

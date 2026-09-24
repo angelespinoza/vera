@@ -7,15 +7,21 @@ import type { DecisionResult } from "./types";
  * original (docs/CFO_Agent_Concepto_v1.md §6); pendientes de calibrar con
  * datos reales (ver docs/ALCANCE_MVP.md §4.2).
  *
- * APPROVE_REVIEW_THRESHOLD recalibrado de 0.1 a 0.25 tras la demo de carga
- * masiva: con 0.1 casi ningún gasto limpio auto-aprobaba (Jev rara vez baja
- * de ~15-20% de "requiere revisión" aunque el cumplimiento sea alto), lo que
- * anulaba el valor de la automatización. Mismo valor duplicado a propósito
- * en src/lib/shadow/evaluate.ts para que la comparación Jev vs. LLM siga
+ * Segunda recalibración, basada en una medición de 58 gastos reales de
+ * demo: incluso gastos genuinamente limpios (herramientas de software
+ * plausibles para el rol, actividades de equipo con aprobación mencionada,
+ * comidas de trabajo con justificación clara) tienen un techo estructural
+ * de Jev alrededor de 85-94% de cumplimiento y 8-27% de necesidad de
+ * revisión — Jev rara vez llega a una confianza "total" porque casi nunca
+ * puede verificar por sí mismo evidencia externa (aprobación de manager,
+ * relevancia de rol). Con el umbral anterior (95% / 25%) solo 3 de 58
+ * gastos limpios auto-aprobaban. Bajado a 85% / 30% para que la automatización
+ * tenga valor real; mismos valores duplicados a propósito en
+ * src/lib/shadow/evaluate.ts para que la comparación Jev vs. LLM siga
  * siendo pareja.
  */
-const APPROVE_COMPLIANCE_THRESHOLD = 0.95;
-const APPROVE_REVIEW_THRESHOLD = 0.25;
+const APPROVE_COMPLIANCE_THRESHOLD = 0.85;
+const APPROVE_REVIEW_THRESHOLD = 0.3;
 const ESCALATE_COMPLIANCE_THRESHOLD = 0.7;
 
 function pct(n: number): string {

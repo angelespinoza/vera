@@ -15,8 +15,8 @@ import type { ShadowEvaluationResult, ShadowOutcome } from "./types";
 // Mismos umbrales que src/lib/decision/engine.ts, duplicados a propósito:
 // esta vía debe poder evolucionar (o eliminarse) sin tocar el motor real.
 // Mantenidos en sync manualmente tras la recalibración (ver ese archivo).
-const APPROVE_COMPLIANCE_THRESHOLD = 0.95;
-const APPROVE_REVIEW_THRESHOLD = 0.25;
+const APPROVE_COMPLIANCE_THRESHOLD = 0.85;
+const APPROVE_REVIEW_THRESHOLD = 0.3;
 const ESCALATE_COMPLIANCE_THRESHOLD = 0.7;
 
 function deriveOutcome(compliance: number, review: number): ShadowOutcome {
