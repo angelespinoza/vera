@@ -8,6 +8,8 @@ import type { ComparativeOutcome, EngineComparativeResult } from "@/lib/expense/
 import { StatTile, StatusBadge } from "./ui";
 
 const MAX_ROWS = 200;
+/** Filas analizándose a la vez en la carga masiva (ver runSimulation). */
+const BULK_CONCURRENCY = 5;
 
 const COLUMN_ALIASES: Record<keyof BulkRowInput, string[]> = {
   employeeEmail: ["empleado", "email", "employee", "employee_email", "correo"],
@@ -418,15 +420,25 @@ export function BulkUpload({ companyId }: { companyId: string }) {
       if (startTimeRef.current !== null) setElapsedMs(Date.now() - startTimeRef.current);
     }, 100);
     try {
-      for (let i = 0; i < rows.length; i++) {
-        setRows((prev) =>
-          prev.map((r, idx) => (idx === i ? { ...r, status: "processing" } : r)),
-        );
-        const result = await processBulkExpenseRow(companyId, rows[i].row);
-        setRows((prev) =>
-          prev.map((r, idx) => (idx === i ? { ...r, status: "done", result } : r)),
-        );
-      }
+      // Pool de workers: el análisis (reglas + Jev + LLM) es seguro de
+      // correr en paralelo (solo son llamadas de lectura/API), así que
+      // BULK_CONCURRENCY filas avanzan a la vez en vez de una por una. El
+      // pago sigue siendo seguro porque sendUsdcPayment serializa los envíos
+      // internamente (ver src/lib/stellar/index.ts) — evita el tx_bad_seq
+      // que causaría firmar dos pagos del mismo treasury al mismo tiempo.
+      let nextIndex = 0;
+      const worker = async () => {
+        while (true) {
+          const i = nextIndex;
+          nextIndex += 1;
+          if (i >= rows.length) return;
+          setRows((prev) => prev.map((r, idx) => (idx === i ? { ...r, status: "processing" } : r)));
+          const result = await processBulkExpenseRow(companyId, rows[i].row);
+          setRows((prev) => prev.map((r, idx) => (idx === i ? { ...r, status: "done", result } : r)));
+        }
+      };
+      const workerCount = Math.min(BULK_CONCURRENCY, rows.length);
+      await Promise.all(Array.from({ length: workerCount }, () => worker()));
     } finally {
       window.clearInterval(timer);
       if (startTimeRef.current !== null) setElapsedMs(Date.now() - startTimeRef.current);
@@ -463,7 +475,7 @@ export function BulkUpload({ companyId }: { companyId: string }) {
           Columnas esperadas: <code>empleado</code> (email registrado), <code>comercio</code>,{" "}
           <code>monto</code>, <code>moneda</code>, <code>categoria</code>, <code>fecha</code> (YYYY-MM-DD),{" "}
           <code>justificacion</code>. Cada fila corre el pipeline completo (reglas → Jev + LLM en
-          paralelo → decisión → pago) una por una, hasta {MAX_ROWS} filas.
+          paralelo → decisión → pago); hasta {BULK_CONCURRENCY} filas a la vez, hasta {MAX_ROWS} filas en total.
         </p>
       </div>
 

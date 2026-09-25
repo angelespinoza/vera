@@ -3,7 +3,7 @@ import { getCompany, EVALUATED_STATUSES } from "./data";
 import { CompanyForm } from "./company-form";
 import { Card } from "./ui";
 import { Sidebar, SectionNav, type NavSection } from "./nav";
-import { IconTreasury, IconMetrics, IconPolicy, IconEmployees, IconExpenses } from "./icons";
+import { IconTreasury, IconMetrics, IconPolicy, IconEmployees, IconExpenses, IconHistory } from "./icons";
 
 export const dynamic = "force-dynamic";
 
@@ -34,6 +34,9 @@ export default async function DashboardLayout({ children }: { children: ReactNod
     { id: "policy", label: "Política", icon: <IconPolicy />, href: "/dashboard/policy" },
     { id: "employees", label: "Empleados", icon: <IconEmployees />, href: "/dashboard/employees" },
     { id: "expenses", label: "Gastos", icon: <IconExpenses />, href: "/dashboard/expenses", badge: pendingCount },
+    ...(evaluatedCount > 0
+      ? [{ id: "historial", label: "Historial", icon: <IconHistory />, href: "/dashboard/historial" }]
+      : []),
   ];
 
   return (
@@ -41,13 +44,23 @@ export default async function DashboardLayout({ children }: { children: ReactNod
       <Sidebar companyName={company.name} sections={navSections} />
       <div className="flex min-w-0 flex-1 flex-col">
         <SectionNav sections={navSections} />
-        <main className="mx-auto flex w-full max-w-4xl flex-col gap-6 p-6 md:p-8">
-          <header className="flex flex-col gap-1">
-            <p className="text-xs font-medium tracking-wide text-text-secondary uppercase md:hidden">
-              Vera — CFO Agent
-            </p>
-            <h1 className="text-2xl font-semibold">{company.name}</h1>
-            <p className="text-sm text-text-secondary">CFO: {company.cfoEmail}</p>
+        <main className="mx-auto flex w-full max-w-7xl flex-col gap-6 p-6 md:p-8">
+          <header className="flex flex-wrap items-center justify-between gap-4">
+            <div>
+              <p className="text-xs font-medium tracking-wide text-text-secondary uppercase md:hidden">
+                Vera — CFO Agent
+              </p>
+              <h1 className="text-2xl font-semibold sm:text-3xl">{company.name}</h1>
+            </div>
+            <div className="flex items-center gap-3 rounded-full border border-border-subtle bg-surface-card py-1.5 pr-4 pl-1.5">
+              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-accent text-sm font-semibold text-accent-foreground">
+                {company.cfoEmail.slice(0, 2).toUpperCase()}
+              </span>
+              <div className="leading-tight">
+                <p className="text-sm font-medium text-foreground">CFO</p>
+                <p className="text-xs text-text-secondary">{company.cfoEmail}</p>
+              </div>
+            </div>
           </header>
 
           {(!company.policy || company.employees.length === 0) && (

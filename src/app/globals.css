@@ -16,6 +16,14 @@
   --accent: #2a78d6;
   --accent-foreground: #ffffff;
 
+  /* Slots categóricos 2-5 (dataviz skill, references/palette.md) — para
+     gráficas con varias series (ej. gasto por categoría). El slot 1 ya
+     existe como --accent. Orden fijo, nunca ciclado. */
+  --chart-cat-2: #eb6834; /* orange */
+  --chart-cat-3: #1baf7a; /* aqua */
+  --chart-cat-4: #eda100; /* yellow */
+  --chart-cat-5: #e87ba4; /* magenta — usado para "Otros" */
+
   --surface-card: #ffffff;
   --surface-muted: #f7f7f6;
   --surface-sidebar: #fafaf9;

@@ -18,7 +18,7 @@ export default async function EmployeesPage() {
       {company.employees.length === 0 ? (
         <p className="text-sm text-text-secondary">Aún no hay empleados registrados.</p>
       ) : (
-        <ul className="flex flex-col gap-3">
+        <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {company.employees.map((employee, i) => (
             <li key={employee.id} className="rounded-lg border border-border-subtle bg-surface-muted p-4">
               <p className="font-medium">

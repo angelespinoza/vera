@@ -103,11 +103,28 @@ const HORIZON_ERROR_LABELS: Record<string, string> = {
 };
 
 /**
+ * Cola global que serializa los envíos: `loadAccount` trae el número de
+ * secuencia vigente y cada pago lo incrementa en 1, pero Horizon solo lo
+ * refleja hasta que el ledger cierra (~5s). Si dos pagos del mismo treasury
+ * se dispararan en paralelo, ambos leerían la misma secuencia y el segundo
+ * fallaría con tx_bad_seq. Desde que la carga masiva paraleliza el análisis
+ * (reglas + Jev + LLM), esta cola es la que evita esa condición de carrera —
+ * el análisis sí corre concurrente, el envío nunca.
+ */
+let paymentQueue: Promise<PaymentResult> = Promise.resolve({ success: true });
+
+/**
  * Envía USDC testnet desde una wallet (secret key en claro, ya descifrada
  * por el caller) a una wallet destino. Etapa 8 / Módulo 8 — se invoca solo
  * cuando el motor de decisión (Etapa 6) aprueba el gasto.
  */
-export async function sendUsdcPayment(
+export function sendUsdcPayment(fromSecretKey: string, toPublicKey: string, amount: number): Promise<PaymentResult> {
+  const task = paymentQueue.then(() => doSendUsdcPayment(fromSecretKey, toPublicKey, amount));
+  paymentQueue = task;
+  return task;
+}
+
+async function doSendUsdcPayment(
   fromSecretKey: string,
   toPublicKey: string,
   amount: number,

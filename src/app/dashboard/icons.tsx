@@ -63,3 +63,14 @@ export function IconExpenses() {
     </svg>
   );
 }
+
+export function IconHistory() {
+  return (
+    <svg {...common} aria-hidden>
+      <circle cx="12" cy="13" r="8" />
+      <path d="M12 9v4l3 2" />
+      <path d="M8 3l-3 2.5" />
+      <path d="M16 3l3 2.5" />
+    </svg>
+  );
+}
