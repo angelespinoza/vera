@@ -4,6 +4,7 @@ import { evaluateExpenseWithJev } from "@/lib/jev/evaluate";
 import { evaluateExpenseShadow } from "@/lib/shadow/evaluate";
 import { decideExpense } from "@/lib/decision/engine";
 import { sendUsdcPayment } from "@/lib/stellar";
+import { releaseVaultPayment } from "@/lib/stellar/vault";
 import { decryptSecret } from "@/lib/crypto";
 import type { StructuredPolicy } from "@/lib/policy/types";
 import type { JevEvaluationResult } from "@/lib/jev/types";
@@ -41,6 +42,7 @@ export interface PipelineResult {
   decision: DecisionResult;
   paymentTxHash?: string;
   paymentError?: string;
+  paidViaVault?: boolean;
   jev?: EngineComparativeResult;
   shadow?: EngineComparativeResult;
 }
@@ -163,15 +165,34 @@ export async function evaluateAndDecideExpense(expenseId: string): Promise<Pipel
   let paymentTxHash: string | undefined;
   let paymentError: string | undefined;
   let paidAt: Date | undefined;
+  let paidViaVault = false;
 
   if (decision.outcome === "APPROVED" && employee) {
     const company = await prisma.company.findUnique({ where: { id: expense.companyId } });
     if (company) {
-      const treasurySecret = decryptSecret(company.treasurySecretKeyEncrypted);
-      const payment = await sendUsdcPayment(treasurySecret, employee.walletPublicKey, expense.amount!);
+      // Si el vault on-chain está inicializado y este empleado está
+      // registrado en él, el pago sale por `release_payment` (firmado por el
+      // operador, tope forzado por el contrato) en vez del pago clásico
+      // firmado con la llave completa del treasury. Ver contracts/spending-vault.
+      const useVault = Boolean(
+        company.vaultInitialized && company.vaultContractId && employee.vaultRegistered,
+      );
+      const payment = useVault
+        ? await releaseVaultPayment({
+            contractId: company.vaultContractId!,
+            operatorSecret: decryptSecret(company.vaultOperatorSecretEncrypted!),
+            employeePublicKey: employee.walletPublicKey,
+            amountUsdc: expense.amount!,
+          })
+        : await sendUsdcPayment(
+            decryptSecret(company.treasurySecretKeyEncrypted),
+            employee.walletPublicKey,
+            expense.amount!,
+          );
       if (payment.success) {
         paymentTxHash = payment.hash;
         paidAt = new Date();
+        paidViaVault = useVault;
       } else {
         paymentError = payment.error;
       }
@@ -190,8 +211,9 @@ export async function evaluateAndDecideExpense(expenseId: string): Promise<Pipel
       paymentTxHash,
       paymentError,
       paidAt,
+      paidViaVault,
     },
   });
 
-  return { decision, paymentTxHash, paymentError, jev: jevComparative, shadow: shadowComparative };
+  return { decision, paymentTxHash, paymentError, paidViaVault, jev: jevComparative, shadow: shadowComparative };
 }

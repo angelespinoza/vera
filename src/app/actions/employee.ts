@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { createFundedTestWallet } from "@/lib/stellar";
 import { encryptSecret } from "@/lib/crypto";
+import { registerEmployeeInVaultIfActive } from "./vault";
 import type { ActionState } from "./company";
 
 export async function createEmployee(
@@ -33,7 +34,7 @@ export async function createEmployee(
 
   const wallet = await createFundedTestWallet();
 
-  await prisma.employee.create({
+  const employee = await prisma.employee.create({
     data: {
       companyId,
       name,
@@ -42,6 +43,12 @@ export async function createEmployee(
       walletPublicKey: wallet.publicKey,
       walletSecretKeyEncrypted: encryptSecret(wallet.secretKey),
     },
+  });
+
+  await registerEmployeeInVaultIfActive({
+    companyId,
+    employeeId: employee.id,
+    employeeWalletPublicKey: wallet.publicKey,
   });
 
   revalidatePath("/dashboard", "layout");

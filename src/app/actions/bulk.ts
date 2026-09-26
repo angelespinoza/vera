@@ -23,6 +23,7 @@ export interface BulkRowResult {
   outcome?: DecisionOutcome;
   reason?: string;
   paymentTxHash?: string;
+  paidViaVault?: boolean;
   /** Lectura aislada de cada motor, solo para el panel comparativo en vivo. */
   jev?: EngineComparativeResult;
   shadow?: EngineComparativeResult;
@@ -90,6 +91,7 @@ export async function processBulkExpenseRow(
     outcome: result.decision.outcome,
     reason: result.decision.reason,
     paymentTxHash: result.paymentTxHash,
+    paidViaVault: result.paidViaVault,
     jev: result.jev,
     shadow: result.shadow,
   };

@@ -25,6 +25,14 @@ model Company {
   treasuryPublicKey          String @unique
   treasurySecretKeyEncrypted String
 
+  // Vault on-chain (Soroban) — techo de gasto forzado por contrato, ver
+  // contracts/spending-vault. El operador es una llave separada del
+  // treasury: solo puede pagar a empleados registrados, hasta su límite.
+  vaultContractId              String?
+  vaultOperatorPublicKey       String?
+  vaultOperatorSecretEncrypted String?
+  vaultInitialized             Boolean @default(false)
+
   employees Employee[]
   policy    Policy?
   expenses  Expense[]
@@ -44,6 +52,13 @@ model Employee {
   // Wallet en Stellar testnet (custodial). La secret key se guarda cifrada.
   walletPublicKey          String @unique
   walletSecretKeyEncrypted String
+
+  // Alta en el vault on-chain (contracts/spending-vault) — espejo de lo que
+  // el contrato realmente tiene registrado, para no tener que leerlo on-chain
+  // en cada render. vaultLimit es el tope de por vida en USDC (7 decimales
+  // en el contrato; aquí en unidades de USDC normales).
+  vaultRegistered Boolean @default(false)
+  vaultLimit      Float?
 
   expenses Expense[]
 
@@ -130,6 +145,9 @@ model Expense {
   paymentTxHash String?
   paymentError  String?
   paidAt        DateTime?
+  // true si este pago salió por el vault on-chain (release_payment) en vez
+  // del pago clásico Stellar firmado con la llave completa del treasury.
+  paidViaVault  Boolean @default(false)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
